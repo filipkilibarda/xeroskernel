@@ -1,0 +1,5 @@
+This ASCII file is to contain a description of any known problems or issues with your 
+assignment. If you know something doesn't work or you assignment is incomplete document
+it here so that the markers don't waste time trying to figure out if there is 
+some sort of build problem or issue when it is simply the case that things aren't
+working.

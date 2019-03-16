@@ -1,0 +1,4 @@
+As the name of this file says, you are not to edit anything in this 
+directory. If you need to edit something in here it is almost certainly 
+the case that you are doing something wrong and should discuss 
+any changes you are going to make with someone on the teaching team.
