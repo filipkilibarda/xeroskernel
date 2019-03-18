@@ -70,3 +70,10 @@ boot/zImage
 compile/xeros
 bochsrc
 
+
+# Added by filip to ignore CLion files
+# ====================================
+CMakeLists.txt
+cmake-build-debug/
+.idea/
+.clion.source.upload.marker
