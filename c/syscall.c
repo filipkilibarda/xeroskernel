@@ -1,73 +1,154 @@
-/* syscall.c : syscalls
- */
+/** syscall.c : syscalls
+ *
+ * This file defines a few functions that user processes use to make
+ * requests to the kernel. The functions are:
+ *
+ *  syscreate(func, stack_size):
+ *      Create a new user process that start from the instruction pointed to
+ *      by func with the given stack size.
+ *  sysstop():
+ *      Stops the current running process.
+ *  sysyield():
+ *      Yield the current running process (give up the cpu and wait to be
+ *      scheduled again).
+ *
+ *  TODO document the rest
+ **/
 
 #include <xeroskernel.h>
 #include <stdarg.h>
+#include "i386.h"
+#include "test.h"
 
+extern int end;
+static int return_value;
+static int req_id;
 
-int syscall( int req, ... ) {
-/**********************************/
+/**
+ * Generic system call function.
+ * Not meant to be called directly by user process. 
+ * Requires a call type identifier, as well as
+ * any other arguments needed to service that request type.
+ * 
+ * Returns the result of the system call.
+ * */
+extern int syscall(int call, ...) {
 
-    va_list     ap;
-    int         rc;
-
-    va_start( ap, req );
-
+    req_id = call;
+    // Save call type into eax and
+    // Execute interrupt to switch into kernel 
     __asm __volatile( " \
-        movl %1, %%eax \n\
-        movl %2, %%edx \n\
-        int  %3 \n\
-        movl %%eax, %0 \n\
-        "
-        : "=g" (rc)
-        : "g" (req), "g" (ap), "i" (KERNEL_INT)
-        : "%eax" 
-    );
- 
-    va_end( ap );
-
-    return( rc );
+        movl req_id, %%eax \n\
+        int $0x3c \n\
+        movl %%eax, return_value \n\
+            "
+        :
+        :
+        :
+        );
+    
+    
+    return return_value;
 }
 
-int syscreate( funcptr fp, size_t stack ) {
-/*********************************************/
-
-    return( syscall( SYS_CREATE, fp, stack ) );
+/**
+ * Creates a new process.
+ * Requires a pointer to the routine for the process to run, 
+ * as well as a size to allocate for the process stack. 
+ * 
+ * Returns the process ID of the created process.
+ * */
+extern unsigned int syscreate(void (*func)(void), int stack_size) {
+    // Ensure function pointer is within legal bounds
+    if ((int *) func > &end) {
+        return -1;
+    }
+    return syscall(SYSCALL_CREATE, func, stack_size);
 }
 
-void sysyield( void ) {
-/***************************/
-  syscall( SYS_YIELD );
+/**
+ * Yields the calling process. 
+ * */
+extern void sysyield(void) {
+    syscall(SYSCALL_YIELD, 0);
 }
 
- void sysstop( void ) {
-/**************************/
-
-   syscall( SYS_STOP );
+/**
+ * Stops the calling process.
+ * */
+extern void sysstop(void) {
+    syscall(SYSCALL_STOP, 0);
 }
 
-unsigned int sysgetpid( void ) {
-/****************************/
 
-    return( syscall( SYS_GETPID ) );
+// Returns the PID of the current process
+extern PID_t sysgetpid(void) {
+    return syscall(SYSCALL_GET_PID, 0);
 }
 
-void sysputs( char *str ) {
-/********************************/
-
-    syscall( SYS_PUTS, str );
+// Performs output to the screen.
+// Takes a null-terminated string as input.
+extern void sysputs(char *str) {
+    syscall(SYSCALL_PUTS, str);
 }
 
-unsigned int syssleep( unsigned int t ) {
-/*****************************/
-
-    return syscall( SYS_SLEEP, t );
+/**
+ * Kills the process with specified PID
+ *
+ * Returns 0 on success, -1 if target PID does not exist.
+ * It is OK for a process to kill itself.
+ */
+extern int syskill(PID_t pid) {
+    return syscall(SYSCALL_KILL, pid);
 }
 
-int syskill(int pid) {
-  return syscall(SYS_KILL, pid);
+/** Sets the priority to a value between 0 and 3, inclusive
+ * Note: lower number implies higher priority
+ * -1 may be passed as the priority to obtain the current process priority.
+ *
+ * Returns the priority prior to the call, or the current priority (if -1)
+ */
+extern int syssetprio(int priority) {
+    return syscall(SYSCALL_SET_PRIO, priority);
 }
 
-int sysgetcputimes(processStatuses *ps) {
-  return syscall(SYS_CPUTIMES, ps);
+/**
+ * Attempts to send given number to the process specified by dest_pid
+ *
+ * Returns:
+ * - If destination process terminates before matching recieve is performed, -1
+ * - If the process does not exist, -2
+ * - If the process tries to send a message to itself, it returns −3
+ * - Returns −100 if any other problem is detected
+ * - On success, 0
+ **/
+extern int syssend(PID_t dest_pid, unsigned long num) {
+    return syscall(SYSCALL_SEND, dest_pid, num);
+}
+
+
+/**
+ * Attempts to receive message from process given by from_pid
+ *
+ * Returns:
+ * - If process to receive from terminates, -1
+ * - If process to receive from does not exist, -2
+ * - If process tries to receive from self, -3
+ * - If address of num is invalid, -4
+ * - If invalid from_pid address, -5
+ * - If receiving process is only process in system, - 10
+ * - Other issues, -100
+ * - On success, 0
+ **/
+extern int sysrecv(PID_t *from_pid, unsigned long *num) {
+    return syscall(SYSCALL_RECV, from_pid, num);
+}
+
+/**
+ * Sleeps for (a minimum of) milliseconds time.
+ *
+ * Returns the amount of time remaining to sleep when process was restored.
+ */
+extern unsigned int syssleep(unsigned int milliseconds) {
+    return syscall(SYSCALL_SLEEP, milliseconds);
 }

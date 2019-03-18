@@ -16,9 +16,6 @@ typedef unsigned int size_t; /* Something that can hold the value of
 #define	NULL    0       /* Null pointer for linked lists */
 #define	NULLCH '\0'     /* The null character            */
 
-#define CREATE_FAILURE -1  /* Process creation failed     */
-
-
 
 /* Universal return constants */
 
@@ -42,141 +39,169 @@ void           init8259(void);
 int            kprintf(char * fmt, ...);
 void           lidt(void);
 void           outb(unsigned int, unsigned char);
-
-
-/* Some constants involved with process creation and managment */
- 
-   /* Maximum number of processes */      
-#define MAX_PROC        64           
-   /* Kernel trap number          */
-#define KERNEL_INT      80
-   /* Interrupt number for the timer */
-#define TIMER_INT      (TIMER_IRQ + 32)
-   /* Minimum size of a stack when a process is created */
-#define PROC_STACK      (4096 * 4)    
-              
-   /* Number of milliseconds in a tick */
-#define MILLISECONDS_TICK 10        
-
-
-/* Constants to track states that a process is in */
-#define STATE_STOPPED   0
-#define STATE_READY     1
-#define STATE_SLEEP     22
-#define STATE_RUNNING   23
-
-/* System call identifiers */
-#define SYS_STOP        10
-#define SYS_YIELD       11
-#define SYS_CREATE      22
-#define SYS_TIMER       33
-#define SYS_GETPID      144
-#define SYS_PUTS        155
-#define SYS_SLEEP       166
-#define SYS_KILL        177
-#define SYS_CPUTIMES    178
-
-/* Structure to track the information associated with a single process */
-
-typedef struct struct_pcb pcb;
-struct struct_pcb {
-  void        *esp;    /* Pointer to top of saved stack           */
-  pcb         *next;   /* Next process in the list, if applicable */
-  pcb         *prev;   /* Previous proccess in list, if applicable*/
-  int          state;  /* State the process is in, see above      */
-  unsigned int pid;    /* The process's ID                        */
-  int          ret;    /* Return value of system call             */
-                       /* if process interrupted because of system*/
-                       /* call                                    */
-  long         args;   
-  unsigned int otherpid;
-  void        *buffer;
-  int          bufferlen;
-  int          sleepdiff;
-  long         cpuTime;  /* CPU time consumed                     */
-};
-
-
-typedef struct struct_ps processStatuses;
-struct struct_ps {
-  int  entries;            // Last entry used in the table
-  int  pid[MAX_PROC];      // The process ID
-  int  status[MAX_PROC];   // The process status
-  long  cpuTime[MAX_PROC]; // CPU time used in milliseconds
-};
-
-
-/* The actual space is set aside in create.c */
-extern pcb     proctab[MAX_PROC];
-
-#pragma pack(1)
-
-/* What the set of pushed registers looks like on the stack */
-typedef struct context_frame {
-  unsigned long        edi;
-  unsigned long        esi;
-  unsigned long        ebp;
-  unsigned long        esp;
-  unsigned long        ebx;
-  unsigned long        edx;
-  unsigned long        ecx;
-  unsigned long        eax;
-  unsigned long        iret_eip;
-  unsigned long        iret_cs;
-  unsigned long        eflags;
-  unsigned long        stackSlots[];
-} context_frame;
-
-
-/* Memory mangement system functions, it is OK for user level   */
-/* processes to call these.                                     */
-
-int      kfree(void *ptr);
-void     kmeminit( void );
-void     *kmalloc( size_t );
-
-
-/* A typedef for the signature of the function passed to syscreate */
-typedef void    (*funcptr)(void);
-
-
-/* Internal functions for the kernel, applications must never  */
-/* call these.                                                 */
-void     dispatch( void );
-void     dispatchinit( void );
-void     ready( pcb *p );
-pcb      *next( void );
-void     contextinit( void );
-int      contextswitch( pcb *p );
-int      create( funcptr fp, size_t stack );
-void     set_evec(unsigned int xnum, unsigned long handler);
-void     printCF (void * stack);  /* print the call frame */
-int      syscall(int call, ...);  /* Used in the system call stub */
-void     sleep(pcb *, unsigned int);
-void     tick( void );
-void removeFromSleep(pcb * p);
-
-
-
-/* Function prototypes for system calls as called by the application */
-int          syscreate( funcptr fp, size_t stack );
-void         sysyield( void );
-void         sysstop( void );
-unsigned int sysgetpid( void );
-unsigned int syssleep(unsigned int);
-void     sysputs(char *str);
-int syskill(int);
-int sysgetcputimes(processStatuses *ps);
-
-/* The initial process that the system creates and schedules */
-void     root( void );
-
-
-
-
 void           set_evec(unsigned int xnum, unsigned long handler);
 
 
-/* Anything you add must be between the #define and this comment */
-#endif
+// Memory management function prototypes
+extern void kmeminit(void);
+extern int  kfree(void *ptr);
+extern void *kmalloc(size_t size);
+unsigned long total_free_memory(void);
+int within_memory_bounds(unsigned long address);
 
+
+// Header struct used in memory allocation
+struct mem_header_s {
+    unsigned long size;         // Size of memory chunk including this header
+    struct mem_header_s *next;  // Next memory chunk
+    struct mem_header_s *prev;  // Prev memory chunk
+    char *sanity_check;         // Used for debugging.
+    unsigned char mem_start[0]; // Start of the allocated memory
+};
+typedef struct mem_header_s mem_header;
+
+// NEW FOR A2
+typedef unsigned int PID_t;
+
+struct pcb_s;
+
+typedef struct pcb_queue_s {
+    struct pcb_s *front_of_line;
+    struct pcb_s *end_of_line;
+} pcb_queue;
+
+// Process Control Block
+struct pcb_s {
+    PID_t pid;
+    int state;
+    void *stack_ptr;
+    // Points to address returned by kfree, which is the end of the stack.
+    void *stack_end;
+    // Points to the place on the process stack where eip was pushed after an
+    // interrupt. This is simply here for convenience to make addressing
+    // system call arguments off the stack easier.
+    void *eip_ptr;
+    int ret_value;
+    int priority;
+    int sleep_time;
+    struct pcb_s *next;
+    pcb_queue sender_queue;
+    pcb_queue receiver_queue;
+    PID_t receiving_from_pid;
+    PID_t sending_to_pid;
+};
+typedef struct pcb_s pcb;
+
+struct safety_zone_s {
+    long one;
+    long two;
+};
+typedef struct safety_zone_s safety_zone;
+
+
+// Syscall request IDs
+#define SYSCALL_CREATE 0
+#define SYSCALL_YIELD 1
+#define SYSCALL_STOP 2
+#define SYSCALL_RUNNING 3
+#define SYSCALL_GET_PID 4
+#define SYSCALL_PUTS 5
+#define SYSCALL_KILL 6
+#define SYSCALL_SET_PRIO 7
+#define SYSCALL_SEND 8
+#define SYSCALL_RECV 9
+#define TIMER_INT 10
+#define SYSCALL_SLEEP 11
+
+#define END_OF_MEMORY 0x400000
+#define DEFAULT_STACK_SIZE 4096
+#define DEFAULT_PRIORITY 3
+// Maximum number of processes. Must be power of two
+#define MAX_PCBS 32
+#define IDLE_PROCESS_PID 0
+// Process state numbers
+#define PROC_READY 0
+#define PROC_RUNNING 1
+#define PROC_STOPPED 2
+#define PROC_BLOCKED 3
+
+void        contextinit(void);
+extern void pcb_init(void);
+int         contextswitch(pcb *process);
+extern void dispatch(void);
+void        reset_pcb_table(void);
+
+// disp.c
+void      init_ipc(void);
+int       kill(PID_t pid);
+pcb_queue queue_constructor(void);
+pcb       *get_ready_queue(int priority);
+int       queue_is_empty(pcb_queue *queue);
+int       pull_from_queue(pcb_queue *queue, pcb *process);
+void      enqueue(pcb_queue *queue, pcb *process);
+void      enqueue_in_ready(pcb *process);
+void      enqueue_in_stopped(pcb *process);
+pcb       *dequeue(pcb_queue *queue);
+pcb       *dequeue_from_ready(void);
+pcb       *dequeue_from_stopped(void);
+int       num_ready_processes(void);
+int       get_num_stopped_processes(void);
+int       get_state(int pid);
+pcb       *get_pcb(PID_t pid);
+int       get_pcb_index(PID_t pid);
+int       is_stopped(pcb *process);
+void      wait_for_free_pcbs(int num_pcbs);
+void      print_ready_queue(void);
+void      print_stopped_queue(void);
+void      print_pcb_table(void);
+void      print_queue(pcb_queue *queue);
+void      dump_queues(void);
+void      validate_stopped_queue(void);
+
+// create.c
+int  create(void (*func)(void), int stack_size);
+void create_idle_process(void);
+
+// user.c
+void root(void);
+void idleproc(void);
+
+// syscall.c
+unsigned int syscreate(void (*func)(void), int stack_size);
+void         sysyield(void);
+void         sysstop(void);
+PID_t        sysgetpid(void);
+void         sysputs(char *str);
+int          syskill(PID_t pid);
+int          syssetprio(int priority);
+int          syssend(PID_t dest_pid, unsigned long num);
+int          sysrecv(PID_t *from_pid, unsigned long * num);
+unsigned int syssleep(unsigned int milliseconds);
+
+// msg.c
+PID_t generate_pid(pcb *process);
+void  send(pcb *sender, PID_t dest_pid, unsigned long num);
+void  recv(pcb *receiver, PID_t *from_pid, unsigned long *dst_num);
+void  remove_from_ipc_queues(pcb *process);
+void  notify_dependent_processes(pcb *process);
+int   is_blocked(pcb *process);
+
+// sleep.c
+int  sleep(pcb *process, unsigned int milliseconds);
+void tick(void);
+void print_sleep_list(void);
+
+// tests
+void test_memory_manager(void);
+void test_dispatcher(void);
+void test_ipc(void);
+void test_sleep(void);
+void test_time_slice(void);
+
+// It helps if this is accessible from other modules.
+pcb pcb_table[MAX_PCBS];
+
+// Pointer to the idle process
+pcb *idle_process;
+
+#endif

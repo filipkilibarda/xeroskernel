@@ -4,146 +4,261 @@
 
 #include <xeroskernel.h>
 #include <xeroslib.h>
+#include <test.h>
 
+#define TICK_TIME 10
+pcb *sleep_delta_list = NULL;
+// Testing methods
+pcb *init_test_pcb(unsigned int milliseconds);
+void _sleep_test(void);
+void _test_time_slice(void);
 
+/**
+ * Used as a wrapper for running the sleep tests
+ **/
+void test_sleep(void) {
+  RUN_TEST(_sleep_test);
+}
 
-static pcb	*sleepQ;
+/**
+ * Used as a wrapper for running time slice test
+ */
+void test_time_slice(void) {
+  RUN_TEST(_test_time_slice);
+}
 
+/**
+ * Adds a given process to its spot in the sleep queue.
+ * Sleep queue is ordered by sleep time remaining. 
+ * 
+ * Returns 0 on success.
+ */
+int sleep(pcb *process, unsigned int milliseconds) {
+    // Set PCB metadata
+    process->sleep_time = milliseconds;
+    process->state = PROC_BLOCKED;
 
-// Len is the length of time to sleep
-
-
-/* This function works by mainting a delta list. This is where
-   each element in the list has as its key a value that is its difference
-   from the previous value. For example if we had the values 3, 7, 8, and 15 
-   to put in a list a list with their actual values would look like:
-       3->7->8->15   As a delta list this would be stored as:
-       3->4->1->7    To get the value of a node we sum all the preceding 
-                     values along with the value in that node. If these 
-   values represent how long into the future to sleep then all we have to do
-   is decrement the value of the head of the list on each tick. When that value
-   gets to 0 the time has expired and we remove it from the list. The value 
-   value of the element now at the head of the list represents how much 
-   additional time has to elapse before that time expires.
-
-   see: http://everything2.com/title/delta+list for additional information
-*/
-
-
-void	sleep( pcb *p, unsigned int len ) {
-/****************************************/
-
-    pcb	*tmp;
-
-
-    if( len < 1 ) {
-        ready( p );
-        return;
+    // Handle empty sleeper list case
+    if (sleep_delta_list == NULL) {
+        sleep_delta_list = process;
+        process->next = NULL;
+        return 0;
     }
 
-    // Convert the length of time to sleep in ticks
-    // each tick is 10ms 
-    len = len / MILLISECONDS_TICK;
-
-    p->state = STATE_SLEEP;
-    p->next = NULL;
-    p->prev = NULL;
-    if( !sleepQ ) { /* Empty sleep list */
-        sleepQ = p;
-        p->sleepdiff = len;
-    } else if( sleepQ->sleepdiff > len ) { /* Add to front */
-        p->next = sleepQ;
-        sleepQ->sleepdiff -= len;
-        p->sleepdiff = len;
-        sleepQ = p;
-    } else {  /* Goes after the head of the queue */
-        len -= sleepQ->sleepdiff;
-
-	/* Look for the spot in the sleep queue where this belongs */
-        for( tmp = sleepQ; tmp->next; tmp = tmp->next ) {
-            if( len < tmp->next->sleepdiff ) {
-	      break; /* goes in front of next element */
+    // Handle non-empty sleep list
+    pcb *cur = sleep_delta_list;
+    pcb *prev = NULL;
+    while (cur != NULL) {
+        if (milliseconds < cur->sleep_time) {
+            // Handle head case
+            if (prev == NULL) {
+                process->next = sleep_delta_list;
+                sleep_delta_list = process;
             } else {
-	      /* goes after next element, so update the time difference */
-              /* and check the next element                             */
-	      len -= tmp->next->sleepdiff;
+                prev->next = process;
+                process->next = cur;
             }
+            return 0;
         }
-
-	
-        p->next = tmp->next;
-        p->prev = tmp;
-        p->sleepdiff = len;
-        tmp->next = p;
-        
-	if( p->next ) { /* Not at that end of the list so insert it */
-            p->next->prev = p;
-            p->next->sleepdiff -= len;
-        }
+        prev = cur;
+        cur = cur->next;
     }
+
+    // Should be at end of list
+    prev->next = process;
+    process->next = NULL;
+    return 0;
+
+}
+
+/**
+ * Loops through sleep queue and decreases each process' time by TICK_TIME.
+ * When a process' time is up, the process is rescheduled to ready queue.
+ */
+void tick() {
+    pcb *cur = sleep_delta_list;
+    while (cur != NULL) {
+        cur->sleep_time -= TICK_TIME;
+        cur = cur->next;
+    }
+
+    cur = sleep_delta_list;
+    pcb *prev = NULL;
+    while(cur != NULL) {
+        if (cur->sleep_time <= 0) {
+            if (prev == NULL) {
+                // Advance head
+                sleep_delta_list = cur->next;
+            } else {
+                // 'Cut out' the process from the list
+                prev->next = cur->next;
+            }
+            // For this assignment we never wake up early
+            cur->ret_value = 0; 
+            LOG("Finished sleeping %d.", cur->pid);
+            enqueue_in_ready(cur);
+        }
+        prev = cur;
+        cur = cur->next;
+    }
+
 }
 
 
-
-void removeFromSleep(pcb * p) {
-
-  if (!sleepQ) {
-    kprintf("Sleep queue corrupt, empty when it shouldn't be\n");
-    return;
-  }
-
-  if (sleepQ == p) { // At front of list
-    sleepQ = p->next;
-    if (sleepQ != NULL) { // adjust sleep time
-
-        // kprintf("Sleep values are %d %d\n", sleepQ->sleepdiff, p->sleepdiff);
-      sleepQ->sleepdiff = sleepQ->sleepdiff +  p->sleepdiff;
-        //kprintf("Front sleeping process %d for %d\n", sleepQ->pid, sleepQ->sleepdiff);
-    } else {
-      // kprintf("Only thing on sleep q\n");
-    }
-  } else {  // Not at front, find the process.
-    pcb * prev = sleepQ;
-    pcb * curr;
-    
-    for (curr = sleepQ->next; curr!=NULL; curr = curr->next) {
-      if (curr == p) { // Found process so remove it
-	prev->next = p->next;
-	if (prev->next != NULL) {
-	  prev->next->sleepdiff = prev->next->sleepdiff +  p->sleepdiff;
-	  // kprintf("Sleeping pid %d differential %d\n", prev->next->pid, prev->next->sleepdiff);
-	  p->next = NULL; // just to clean things up
-	} else {
-	  // kprintf("Sleeping %d was last process on list\n", curr->pid);
-	}
-	break;
-      }
-      prev = curr;
-    }
-    if (curr == NULL) {
-      kprintf("Sleep queue corrupt, process claims on queue and not found\n");
-      
-    }
+// For debugging 
+void print_sleep_list(void) {
+  pcb *head = sleep_delta_list;
+  while (head) {
+    kprintf("PID: %d\n", head->pid);
+    kprintf("Time remaining: %d\n", head->sleep_time);
+    head = head->next;
   }
 }
 
-extern void tick( void ) {
-/****************************/
 
-    pcb	*tmp;
+/**
+ * Tests various aspects of the sleep functionality. 
+ * 
+ * Ensure that:
+ * - PCB enqueued into correct spot in delta list.
+ * - PCB removed from delta list after sufficient number of quantums. 
+ * - PCB added back correctly to ready queue.
+ **/
+void _sleep_test(void) {
+  // TEST 1: Create 4 PCBs with different sleep times, 
+  // add them to sleep queue.
+  // Ensure that they get added in the correct order.
+  pcb *pcb_1 = init_test_pcb(1000);
+  pcb *pcb_2 = init_test_pcb(2000);
+  pcb *pcb_3 = init_test_pcb(1500);
+  pcb *pcb_4 = init_test_pcb(500);
 
-    if( !sleepQ ) {
-        return;
+  sleep(pcb_1, pcb_1->sleep_time);
+  sleep(pcb_2, pcb_2->sleep_time);
+  sleep(pcb_3, pcb_3->sleep_time);
+  sleep(pcb_4, pcb_4->sleep_time);
+
+  pcb *cur = sleep_delta_list;
+  for (int i = 0; i < 4; i++) {
+    switch(i) {
+      case 0:     
+        ASSERT(cur->sleep_time == 500, "Order wrong!");
+        break;
+      case 1:
+        ASSERT(cur->sleep_time == 1000, "Order wrong!");
+        break;
+      case 2:
+        ASSERT(cur->sleep_time == 1500, "Order wrong!");
+        break;
+      case 3:
+        ASSERT(cur->sleep_time == 2000, "Order wrong!");
+        break;
     }
+    cur = cur->next;
+  }
 
-    for( sleepQ->sleepdiff--; sleepQ && !sleepQ->sleepdiff; ) {
-        tmp = sleepQ;
-        sleepQ = tmp->next;
+  kfree(pcb_1);
+  kfree(pcb_2);
+  kfree(pcb_3);
+  kfree(pcb_4);
 
-        tmp->state = STATE_READY;
-        tmp->next = NULL;
-        tmp->prev = NULL;
-        tmp->ret = 0;
-        ready( tmp );
-    }
+  // TEST 2: Ensure that after an ample number of ticks, 
+  // Processes are removed from sleep queue AND added
+  // back to the ready queue.
+  pcb_1 = init_test_pcb(50);
+  pcb_2 = init_test_pcb(20);
+  pcb_3 = init_test_pcb(10);
+  pcb_4 = init_test_pcb(30);
+
+  // Give them simple PIDs for testing purposes
+  pcb_1->pid = 1;
+  pcb_2->pid = 2;
+  pcb_3->pid = 3;
+  pcb_4->pid = 4;
+
+  sleep(pcb_1, pcb_1->sleep_time);
+  sleep(pcb_2, pcb_2->sleep_time);
+  sleep(pcb_3, pcb_3->sleep_time);
+  sleep(pcb_4, pcb_4->sleep_time);
+
+  for (int i = 0; i < 5; i++) {
+    tick();
+  }
+
+  ASSERT(sleep_delta_list == NULL, 
+  "Processes should have all been removed from the sleep list.");
+  // Get the ready queue
+  pcb *ready_queue = get_ready_queue(3);
+
+  // Make sure all processes that were on the sleeping queue are now 
+  // on the ready queue
+  int seen1, seen2, seen3, seen4 = 0;
+  PID_t pid_1 = pcb_1->pid;
+  PID_t pid_2 = pcb_2->pid;
+  PID_t pid_3 = pcb_3->pid;
+  PID_t pid_4 = pcb_4->pid;
+  while (ready_queue != NULL) {
+    PID_t this_pid = ready_queue->pid;
+    if (this_pid == pid_1) seen1 = 1;
+    else if (this_pid == pid_2) seen2 = 1;
+    else if (this_pid == pid_3) seen3 = 1;
+    else if (this_pid == pid_4) seen4 = 1; 
+    LOG("Ready queue PID is %d\n", this_pid);
+    ready_queue = ready_queue->next;
+  }
+
+  ASSERT(seen1 == 1, "PCB 1 not added back to the ready queue");
+  ASSERT(seen2 == 1, "PCB 2 not added back to the ready queue");
+  ASSERT(seen3 == 1, "PCB 3 not added back to the ready queue");
+  ASSERT(seen4 == 1, "PCB 4 not added back to the ready queue");
+
+  reset_pcb_table();
+  return;
+}
+
+
+/**
+ * Loops and prints "Hello, process 1"
+ * Used to test time slicing
+ */
+void print_loop_one(void) {
+  while (1) {
+    kprintf("Hello, process 1\n");
+  }
+}
+
+/**
+ * Loops and prints "Hello, process 2"
+ * Used to test time slicing
+ */
+void print_loop_two(void) {
+  while (1) {
+    kprintf("Hello, process 2\n");
+  }
+}
+
+/**
+ * Tests time slicing by creating two infinite loop
+ * processes that print messages. If time slicing works
+ * the messages should eventually alternate when a timer 
+ * interrupt goes off.
+ */
+void _test_time_slice(void) {
+  create(print_loop_one, DEFAULT_STACK_SIZE);
+  create(print_loop_two, DEFAULT_STACK_SIZE);
+}
+
+/**
+ * Helpful function for creating PCBs to be used in 
+ * testing of sleep functionality.
+ **/ 
+pcb *init_test_pcb(unsigned int milliseconds){
+  // For testing sleep, all we really need is a PCB with 
+  // a sleep time.
+  pcb *test_pcb = kmalloc(sizeof(pcb));
+  test_pcb->state = PROC_BLOCKED;
+  test_pcb->sleep_time = milliseconds;
+  test_pcb->priority = 3;
+  test_pcb->next = NULL;
+  return test_pcb;
 }
