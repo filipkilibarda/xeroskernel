@@ -262,6 +262,15 @@ void* find_right_coalesce(unsigned long header_address) {
 
 
 /**
+ * Return 1 if the address is in the hole.
+ * Return 0 otherwise.
+ **/
+int in_hole(unsigned long address) {
+	return address >= HOLESTART && address <= HOLEEND;
+}
+
+
+/**
  * Return 1 if the address is within valid memory addresses.
  * Return 0 otherwise.
  **/
@@ -270,13 +279,7 @@ int within_memory_bounds(unsigned long address) {
 	if (address == NULL || address < freemem || address > END_OF_MEMORY) {
 		return 0;
 	}
-
-	// Next, ensure ptr is not in the hole
-	if (address >= HOLESTART && address < HOLEEND) {
-		return 0;
-	}
-
-	return 1;
+	return !in_hole(address);
 }
 
 
