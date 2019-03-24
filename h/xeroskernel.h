@@ -92,6 +92,16 @@ struct pcb_s {
 };
 typedef struct pcb_s pcb;
 
+
+typedef struct struct_ps processStatuses;
+struct struct_ps {
+    int  entries;            // Last entry used in the table
+    int  pid[MAX_PROC];      // The process ID
+    int  status[MAX_PROC];   // The process status
+    long  cpuTime[MAX_PROC]; // CPU time used in milliseconds
+};
+
+
 struct safety_zone_s {
     long one;
     long two;
