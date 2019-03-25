@@ -152,3 +152,40 @@ extern int sysrecv(PID_t *from_pid, unsigned long *num) {
 extern unsigned int syssleep(unsigned int milliseconds) {
     return syscall(SYSCALL_SLEEP, milliseconds);
 }
+
+/**
+ * Registers the specified handler (newHandler) as the signal 
+ * handler for the specified signal, updating oldHandler to 
+ * point to the address of the previously registered handler.
+ * 
+ * Returns one of the following:
+ * - if signal number provided is invalid, -1
+ * - if trying to register signal 31, -1
+ * - if newHandler is located at invalid address, -2
+ * - if oldHandler points to illegal memory location, -3
+ * - on success, return 0
+ */
+int syssighandler(int signal, void (*newHandler)(void *), void (**oldHandler)(void *)) {
+    
+    // Check that signal number is valid
+    if (signal < 0 || signal > 30) return -1;
+
+    // Check that newHandler is in valid memory space
+    if ((int*) newHandler < &end 
+    || ((int) newHandler > HOLESTART && (int) newHandler < HOLEEND) 
+    || (int) newHandler > END_OF_MEMORY) return -2;
+
+    // Check that oldHandler is in valid memory space
+    if ((int*) oldHandler < &end 
+    || ((int) oldHandler > HOLESTART && (int) oldHandler < HOLEEND) 
+    || (int) oldHandler > END_OF_MEMORY) return -3;
+
+    // At this point we're good, register new handler
+    PID_t current_process = sysgetpid();
+    pcb *current_pcb = get_pcb(current_process);
+    void (*old_func)(void *) = current_pcb->sig_handlers[signal];
+    *oldHandler = old_func;
+    current_pcb->sig_handlers[signal] = newHandler;
+
+    return 0;
+}

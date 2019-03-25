@@ -89,6 +89,7 @@ struct pcb_s {
     pcb_queue receiver_queue;
     PID_t receiving_from_pid;
     PID_t sending_to_pid;
+    void* sig_handlers[32];
 };
 typedef struct pcb_s pcb;
 
