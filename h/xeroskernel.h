@@ -27,8 +27,36 @@ typedef unsigned int size_t; /* Something that can hold the value of
                                 /*  (usu. defined as ^B)        */
 #define	BLOCKERR     -5         /* non-blocking op would block  */
 
-/* Functions defined by startup code */
+// Syscall request IDs
+#define SYSCALL_CREATE 0
+#define SYSCALL_YIELD 1
+#define SYSCALL_STOP 2
+#define SYSCALL_RUNNING 3
+#define SYSCALL_GET_PID 4
+#define SYSCALL_PUTS 5
+#define SYSCALL_KILL 6
+#define SYSCALL_SET_PRIO 7
+#define SYSCALL_SEND 8
+#define SYSCALL_RECV 9
+#define TIMER_INT 10
+#define SYSCALL_SLEEP 11
+#define SYSCALL_GET_CPU_TIMES 12
 
+#define END_OF_MEMORY 0x400000
+#define DEFAULT_STACK_SIZE 4096
+#define DEFAULT_PRIORITY 3
+// Maximum number of processes. Must be power of two
+#define MAX_PCBS 32
+#define IDLE_PROCESS_PID 0
+// Process state numbers
+#define PROC_READY 0
+#define PROC_RUNNING 1
+#define PROC_STOPPED 2
+#define PROC_BLOCKED 3
+
+// TODO: Total guess. I just don't feel like figuring out how many
+//  milliseconds I should actually put here right now.
+#define TICK_MILLISECONDS 100
 
 void           bzero(void *base, int cnt);
 void           bcopy(const void *src, void *dest, unsigned int n);
@@ -43,11 +71,11 @@ void           set_evec(unsigned int xnum, unsigned long handler);
 
 
 // Memory management function prototypes
-extern void kmeminit(void);
-extern int  kfree(void *ptr);
-extern void *kmalloc(size_t size);
-unsigned long total_free_memory(void);
-int within_memory_bounds(unsigned long address);
+extern void    kmeminit(void);
+extern int     kfree(void *ptr);
+extern void *  kmalloc(size_t size);
+unsigned long  total_free_memory(void);
+int            within_memory_bounds(unsigned long address);
 
 
 // Header struct used in memory allocation
@@ -109,43 +137,13 @@ struct struct_ps {
 };
 
 
+// TODO: We could probably get rid of the safety zone since everything is
+//  working. Will do it once things are stable.
 struct safety_zone_s {
     long one;
     long two;
 };
 typedef struct safety_zone_s safety_zone;
-
-
-// Syscall request IDs
-#define SYSCALL_CREATE 0
-#define SYSCALL_YIELD 1
-#define SYSCALL_STOP 2
-#define SYSCALL_RUNNING 3
-#define SYSCALL_GET_PID 4
-#define SYSCALL_PUTS 5
-#define SYSCALL_KILL 6
-#define SYSCALL_SET_PRIO 7
-#define SYSCALL_SEND 8
-#define SYSCALL_RECV 9
-#define TIMER_INT 10
-#define SYSCALL_SLEEP 11
-#define SYSCALL_GET_CPU_TIMES 12
-
-#define END_OF_MEMORY 0x400000
-#define DEFAULT_STACK_SIZE 4096
-#define DEFAULT_PRIORITY 3
-// Maximum number of processes. Must be power of two
-#define MAX_PCBS 32
-#define IDLE_PROCESS_PID 0
-// Process state numbers
-#define PROC_READY 0
-#define PROC_RUNNING 1
-#define PROC_STOPPED 2
-#define PROC_BLOCKED 3
-
-// TODO: Total guess. I just don't feel like figuring out how many
-//  milliseconds I should actually put here right now.
-#define TICK_MILLISECONDS 100
 
 void        contextinit(void);
 extern void pcb_init(void);
