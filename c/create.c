@@ -97,6 +97,12 @@ pcb *setup_process(void (*func)(void), int stack_size, int priority) {
     free_pcb->sender_queue = queue_constructor();
     free_pcb->receiving_from_pid = NULL;
     free_pcb->sending_to_pid = NULL;
+    free_pcb->sig_mask = (unsigned long) 0x00000000;
+
+    // Initialize all signal handlers to NULL
+    for (int i = 0; i < 32; i++) {
+        free_pcb->sig_handlers[i] = NULL;
+    }
 
     return free_pcb;
 }

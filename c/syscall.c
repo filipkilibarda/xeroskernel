@@ -23,6 +23,9 @@
 extern int end;
 static int return_value;
 static int req_id;
+// Signal masks, used for updating sig_mask
+const unsigned long sig_masks[5] = 
+{0x0000001E, 0x0000001D, 0x0000001B, 0x00000017, 0x0000000F};
 
 /**
  * Generic system call function.
@@ -93,13 +96,21 @@ extern void sysputs(char *str) {
 }
 
 /**
- * Kills the process with specified PID
+ * Sends a signal (signalNumber) to the specified process
  *
- * Returns 0 on success, -1 if target PID does not exist.
+ * Returns 0 on success, -514 is PID does not exist, 
+ * -583 if signal number is invalid.
  * It is OK for a process to kill itself.
  */
-extern int syskill(PID_t pid) {
-    return syscall(SYSCALL_KILL, pid);
+extern int syskill(PID_t pid, int signalNumber) {
+    // Determine if pid is valid
+    pcb *process_pcb = get_pcb(pid);
+    if (!process_pcb) return -514;
+
+    // Determine if signalNumber is valid
+    if (signalNumber < 0 || signalNumber > 31) return -583;
+
+    return syscall(SYSCALL_KILL, pid, signalNumber);
 }
 
 /** Sets the priority to a value between 0 and 3, inclusive
@@ -187,5 +198,52 @@ int syssighandler(int signal, void (*newHandler)(void *), void (**oldHandler)(vo
     *oldHandler = old_func;
     current_pcb->sig_handlers[signal] = newHandler;
 
+    return 0;
+}
+
+/**
+ * Performs a return from the signal trampoline code
+ * Will only ever be called by the signal trampoline code
+ * Updates the PCB's stack pointer field, and retrieves 
+ * any saved return value. Updates the PCB's sig_mask
+ * field to indicate that the current signal being finished
+ * can be delivered again.
+ */
+void syssigreturn(void *old_sp) {
+
+    PID_t current_process = sysgetpid();
+    pcb *current_pcb = get_pcb(current_process);
+
+    // TODO: Ensure this is the right approach to store/restore old ret value
+    current_pcb->ret_value = current_pcb->old_ret_value;
+
+    // Determine which signal was just sent and reset its bit in mask
+    //int *signal = value on signal stack frame depending on how it's set up
+    //unsigned long mask = sig_masks[*signal];
+    //pcb->sig_mask = pcb->sig_mask & mask;
+
+    // Update stack pointer
+    current_pcb->stack_ptr = old_sp;
+
+    // Call context switcher, I think?
+    contextswitch(current_pcb);
+}
+
+
+/**
+ * Causes the calling process to wait for the specified
+ * process to terminate. 
+ * 
+ * Returns:
+ * - if call terminates normally, 0
+ * - if process specified does not exist, -1
+ * - if interrupted by signal, returns value indicating so
+ */
+int syswait(PID_t pid) {
+
+    // TODO: Block calling process, and return it to ready 
+    // queue once the process it's waiting on is dead
+
+    // Stub
     return 0;
 }

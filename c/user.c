@@ -37,7 +37,7 @@ void consumer(void) {
         kprintf("everyone\n");
         //return;
         // Test to see if process can kill itself
-        syskill(sysgetpid());
+        syskill(sysgetpid(), 9);
         // This won't happen
         kprintf("This line shouldn't print.");
         sysyield();
@@ -230,7 +230,7 @@ extern void root(void) {
     PUTS("Send to pid %d returned status %d", pids[2], send_result);
 
     // Process kills itself
-    syskill(sysgetpid());
+    syskill(sysgetpid(), 9);
 }
 
 
