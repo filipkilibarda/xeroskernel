@@ -90,6 +90,7 @@ extern void dispatch(void) {
     unsigned long *num;        // used in SYSCALL_RECV
     PID_t *pid_ptr;            // used in SYSCALL_RECV
     unsigned long data;        // used in SYSCALL_SEND
+    int signalNumber;          // used in SYSCALL_KILL
 
     // Grab the first process to service
     pcb *process = dequeue_from_ready();
@@ -136,17 +137,23 @@ extern void dispatch(void) {
                 break;
 
             case SYSCALL_KILL:
-                // Obtain PID to kill and kill it
+                // Obtain PID to send signal, and signalNumber
                 pid = *((PID_t *) (process->eip_ptr + 24));
-                process->ret_value = kill(pid);
+                signalNumber = *((int *) (process->eip_ptr + 28)); 
+                
+                if (signalNumber == 9) {
+                    kill(pid);
+                    // Check if process killed itself,
+                    // if not, enqueue process back to ready
+                    if (process->state != PROC_STOPPED) {
+                        enqueue_in_ready(process);
+                    }
 
-                // Check if process killed itself,
-                // if not, enqueue process back to ready
-                if (process->state != PROC_STOPPED) {
-                    enqueue_in_ready(process);
+                    process = dequeue_from_ready();
+                } else {
+                    // Call signal(pid, signalNumber)
                 }
 
-                process = dequeue_from_ready();
                 break;
 
             case SYSCALL_SET_PRIO:

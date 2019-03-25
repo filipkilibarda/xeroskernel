@@ -82,6 +82,7 @@ struct pcb_s {
     // system call arguments off the stack easier.
     void *eip_ptr;
     int ret_value;            // The value to return to proc after sys call.
+    int old_ret_value;        // Used in signaling to save old ret value
     int priority;             // Scheduling priority.
     int sleep_time;
     long num_ticks;           // Number of ticks used by this.
@@ -90,6 +91,8 @@ struct pcb_s {
     pcb_queue receiver_queue; // pcbs wanting to recv from this.
     PID_t receiving_from_pid; // PID that this is blocked receiving from.
     PID_t sending_to_pid;     // PID that this is blocked sending to.
+    void *sig_handlers[32];
+    unsigned long sig_mask;
 };
 typedef struct pcb_s pcb;
 
@@ -191,11 +194,14 @@ void         sysyield(void);
 void         sysstop(void);
 PID_t        sysgetpid(void);
 void         sysputs(char *str);
-int          syskill(PID_t pid);
+int          syskill(PID_t pid, int signalNumber);
 int          syssetprio(int priority);
 int          syssend(PID_t dest_pid, unsigned long num);
 int          sysrecv(PID_t *from_pid, unsigned long * num);
 unsigned int syssleep(unsigned int milliseconds);
+int          syssighandler(int signal, void (*newHandler)(void *), void (**oldHandler)(void *));
+void         syssigreturn(void *old_sp);
+int          syswait(PID_t pid);
 
 // msg.c
 PID_t generate_pid(pcb *process);
