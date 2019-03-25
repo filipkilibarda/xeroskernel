@@ -97,6 +97,9 @@ pcb *setup_process(void (*func)(void), int stack_size, int priority) {
     free_pcb->sender_queue = queue_constructor();
     free_pcb->receiving_from_pid = NULL;
     free_pcb->sending_to_pid = NULL;
+    free_pcb->total_cpu_time = 0;
+
+    // TODO: Set cpu time to 0
 
     return free_pcb;
 }

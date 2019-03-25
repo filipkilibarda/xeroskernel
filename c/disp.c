@@ -199,6 +199,7 @@ extern void dispatch(void) {
                 // Tick the clock and signal completion
                 tick();
                 end_of_intr();
+                process->num_ticks++;
 
                 // Ensure we don't enqueue idle process
                 if (process != idle_process) 
@@ -551,40 +552,66 @@ void wait_for_free_pcbs(int num_pcbs) {
     LOG("Finished waiting for free pcbs (%d)", get_num_stopped_processes());
 }
 
+
 /**
  * This function is the system side of the sysgetcputimes call.
  * It places into a the structure being pointed to information about
  * each currently active process.
  *     p   - a pointer into the pcbtab of the currently active process
- *     ps  - a pointer to a processStatuses structure that is
+ *     proc_stats  - a pointer to a process_statuses structure that is
  *           filled with information about all the processes currently in the system
+ *
+ * Return: The index of the last slot in process_statuses that got
+ *          filled in. Basically, this is the number of active processes
+ *          minus one.
  **/
-int get_cpu_times(pcb *p, processStatuses *ps) {
+int get_cpu_times(process_statuses *proc_stats) {
 
-    int i, currentSlot;
-    currentSlot = -1;
+    int current_slot;
+    current_slot = -1;
 
-    // Check if address is in the hole
-    if (((unsigned long) ps) >= HOLESTART && ((unsigned long) ps <= HOLEEND))
+    // Used for validation
+    unsigned long ptr = (unsigned long) proc_stats;
+    unsigned long ptr_end = ptr + sizeof(process_statuses) - 1;
+
+    if (in_hole(ptr) || in_hole(ptr_end))
         return -1;
 
-    //Check if address of the data structure is beyone the end of main memory
-    if ((((char * ) ps) + sizeof(processStatuses)) > maxaddr)
+    // TODO: In the solution given to us, they only check that the address
+    //  doesn't go beyond main memory. They don't check that the address
+    //  isn't in kernel space. User processes shouldn't be passing kernel
+    //  space pointers into system calls, so I'm going to put that check here.
+    if (!within_memory_bounds(ptr) || !within_memory_bounds(ptr_end))
         return -2;
 
-    // There are probably other address checks that can be done, but this is OK for now
-
-    for (i=0; i < MAX_PROC; i++) {
-        if (proctab[i].state != STATE_STOPPED) {
+    for (int i=0; i < MAX_PCBS; i++) {
+        if (pcb_table[i].state != PROC_STOPPED) {
             // fill in the table entry
-            currentSlot++;
-            ps->pid[currentSlot] = proctab[i].pid;
-            ps->status[currentSlot] = p->pid == proctab[i].pid ? STATE_RUNNING: proctab[i].state;
-            ps->cpuTime[currentSlot] = proctab[i].cpuTime * MILLISECONDS_TICK;
+            current_slot++;
+            proc_stats->pid[current_slot] = pcb_table[i].pid;
+            proc_stats->status[current_slot] = pcb_table[i].state
+            proc_stats->cpu_time[current_slot] =
+                    pcb_table[i].num_ticks * TICK_MILLISECONDS;
         }
     }
 
-    return currentSlot;
+    return current_slot;
+}
+
+
+
+/**
+ * Print the status and cpu times for all active processes.
+ **/
+void print_cpu_times(process_statuses *proc_stats) {
+    char buff[200];
+    for(int j = 0; j <= procs; j++) {
+        sprintf(buff, "%4d    %4d    %10d\n",
+                proc_stats.pid[j],
+                proc_stats.status[j],
+                proc_stats.cpu_time[j]);
+        kprintf(buff);
+    }
 }
 
 

@@ -81,24 +81,28 @@ struct pcb_s {
     // interrupt. This is simply here for convenience to make addressing
     // system call arguments off the stack easier.
     void *eip_ptr;
-    int ret_value;
-    int priority;
+    int ret_value;            // The value to return to proc after sys call.
+    int priority;             // Scheduling priority.
     int sleep_time;
-    struct pcb_s *next;
-    pcb_queue sender_queue;
-    pcb_queue receiver_queue;
-    PID_t receiving_from_pid;
-    PID_t sending_to_pid;
+    long num_ticks;           // Number of ticks used by this.
+    struct pcb_s *next;       // Generic next pcb; used for queues.
+    pcb_queue sender_queue;   // pcbs wanting to send to this.
+    pcb_queue receiver_queue; // pcbs wanting to recv from this.
+    PID_t receiving_from_pid; // PID that this is blocked receiving from.
+    PID_t sending_to_pid;     // PID that this is blocked sending to.
 };
 typedef struct pcb_s pcb;
 
 
-typedef struct struct_ps processStatuses;
+typedef struct struct_ps process_statuses;
 struct struct_ps {
-    int  entries;            // Last entry used in the table
-    int  pid[MAX_PROC];      // The process ID
-    int  status[MAX_PROC];   // The process status
-    long  cpuTime[MAX_PROC]; // CPU time used in milliseconds
+    // TODO: Commented this out because it's actually not used anywhere.
+    //  Could clarify with TAs but seems that they thought about using this
+    //  field then bailed on the idea.
+//    int  entries;            // Last entry used in the table
+    int   pid[MAX_PCBS];      // The process ID
+    int   status[MAX_PCBS];   // The process status
+    long  cpu_time[MAX_PCBS]; // CPU time used in milliseconds
 };
 
 
@@ -134,6 +138,10 @@ typedef struct safety_zone_s safety_zone;
 #define PROC_RUNNING 1
 #define PROC_STOPPED 2
 #define PROC_BLOCKED 3
+
+// TODO: Total guess. I just don't feel like figuring out how many
+//  milliseconds I should actually put here right now.
+#define TICK_MILLISECONDS 100
 
 void        contextinit(void);
 extern void pcb_init(void);
