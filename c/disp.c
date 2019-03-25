@@ -16,6 +16,7 @@ char *proc_state_str[4] = {"READY", "RUNNING", "STOPPED", "BLOCKED"};
 void free_process_memory(pcb *process);
 pcb *get_pcb(PID_t pid);
 int count_pcbs(pcb_queue *queue);
+int get_cpu_times(process_statuses *proc_stats);
 
 // Set up stopped queue
 static pcb_queue _stopped_queue;
@@ -81,16 +82,17 @@ void reset_pcb_table(void) {
  **/
 extern void dispatch(void) {
     int request;
-    int priority;              // used in SYSCALL_SET_PRIO
-    char *message;             // used in SYSCALL_PUTS
-    PID_t pid;                 // used in SYSCALL_KILL
-    void *process_func_ptr;    // used in SYSCALL_CREATE
-    unsigned int milliseconds; // used in SYSCALL_SLEEP
-    int stack_size;            // used in SYSCALL_CREATE
-    unsigned long *num;        // used in SYSCALL_RECV
-    PID_t *pid_ptr;            // used in SYSCALL_RECV
-    unsigned long data;        // used in SYSCALL_SEND
-    int signalNumber;          // used in SYSCALL_KILL
+    int priority;                 // used in SYSCALL_SET_PRIO
+    char *message;                // used in SYSCALL_PUTS
+    PID_t pid;                    // used in SYSCALL_KILL
+    void *process_func_ptr;       // used in SYSCALL_CREATE
+    unsigned int milliseconds;    // used in SYSCALL_SLEEP
+    int stack_size;               // used in SYSCALL_CREATE
+    unsigned long *num;           // used in SYSCALL_RECV
+    PID_t *pid_ptr;               // used in SYSCALL_RECV
+    unsigned long data;           // used in SYSCALL_SEND
+    int signalNumber;             // used in SYSCALL_KILL
+    process_statuses *proc_stats; // used in SYSCALL_GET_CPU_TIMES
 
     // Grab the first process to service
     pcb *process = dequeue_from_ready();
@@ -203,9 +205,8 @@ extern void dispatch(void) {
                 break;
 
             case SYSCALL_GET_CPU_TIMES:
-                process_statuses *proc_stats =
-                        (process_statuses *) (process->eip_ptr + 24);
-                process->ret = get_cpu_times(proc_stats);
+                proc_stats = (process_statuses *)(process->eip_ptr + 24);
+                process->ret_value = get_cpu_times(proc_stats);
                 enqueue_in_ready(process);
                 process = dequeue_from_ready();
                 break;
@@ -584,7 +585,6 @@ void wait_for_free_pcbs(int num_pcbs) {
 int get_cpu_times(process_statuses *proc_stats) {
 
     int current_slot;
-    current_slot = -1;
 
     // Used for validation
     unsigned long ptr = (unsigned long) proc_stats;
@@ -600,17 +600,18 @@ int get_cpu_times(process_statuses *proc_stats) {
     if (!within_memory_bounds(ptr) || !within_memory_bounds(ptr_end))
         return -2;
 
-    for (int i=0; i < MAX_PCBS; i++) {
-        if (pcb_table[i].state != PROC_STOPPED) {
-            // fill in the table entry
-            current_slot++;
-            proc_stats->pid[current_slot] = pcb_table[i].pid;
-            proc_stats->status[current_slot] = pcb_table[i].state
-            proc_stats->cpu_time[current_slot] =
-                    pcb_table[i].num_ticks * TICK_MILLISECONDS;
-        }
+    current_slot = -1;
+    for (int i = 0; i < MAX_PCBS; i++) {
+        if (is_stopped(&pcb_table[i])) continue;
+        // fill in the table entry
+        current_slot++;
+        proc_stats->pid[current_slot] = pcb_table[i].pid;
+        proc_stats->status[current_slot] = pcb_table[i].state;
+        proc_stats->cpu_time[current_slot] =
+                pcb_table[i].num_ticks * TICK_MILLISECONDS;
     }
 
+    proc_stats->length = current_slot + 1;
     return current_slot;
 }
 
@@ -621,11 +622,11 @@ int get_cpu_times(process_statuses *proc_stats) {
  **/
 void print_cpu_times(process_statuses *proc_stats) {
     char buff[200];
-    for(int j = 0; j <= procs; j++) {
+    for(int i = 0; i < proc_stats->length; i++) {
         sprintf(buff, "%4d    %4d    %10d\n",
-                proc_stats.pid[j],
-                proc_stats.status[j],
-                proc_stats.cpu_time[j]);
+                proc_stats->pid[i],
+                proc_stats->status[i],
+                proc_stats->cpu_time[i]);
         kprintf(buff);
     }
 }

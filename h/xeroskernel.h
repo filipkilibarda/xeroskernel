@@ -76,6 +76,7 @@ extern int     kfree(void *ptr);
 extern void *  kmalloc(size_t size);
 unsigned long  total_free_memory(void);
 int            within_memory_bounds(unsigned long address);
+int            in_hole(unsigned long address);
 
 
 // Header struct used in memory allocation
@@ -125,12 +126,11 @@ struct pcb_s {
 typedef struct pcb_s pcb;
 
 
+// TODO: Clarify w/ TAs if this struct should be exactly the same as
+//  what they gave us for a3 starter code
 typedef struct struct_ps process_statuses;
 struct struct_ps {
-    // TODO: Commented this out because it's actually not used anywhere.
-    //  Could clarify with TAs but seems that they thought about using this
-    //  field then bailed on the idea.
-//    int  entries;            // Last entry used in the table
+    int   length;             // Number of entries that are populated.
     int   pid[MAX_PCBS];      // The process ID
     int   status[MAX_PCBS];   // The process status
     long  cpu_time[MAX_PCBS]; // CPU time used in milliseconds
@@ -155,19 +155,19 @@ void        reset_pcb_table(void);
 void      init_ipc(void);
 int       kill(PID_t pid);
 pcb_queue queue_constructor(void);
-pcb       *get_ready_queue(int priority);
+pcb *     get_ready_queue(int priority);
 int       queue_is_empty(pcb_queue *queue);
 int       pull_from_queue(pcb_queue *queue, pcb *process);
 void      enqueue(pcb_queue *queue, pcb *process);
 void      enqueue_in_ready(pcb *process);
 void      enqueue_in_stopped(pcb *process);
-pcb       *dequeue(pcb_queue *queue);
-pcb       *dequeue_from_ready(void);
-pcb       *dequeue_from_stopped(void);
+pcb *     dequeue(pcb_queue *queue);
+pcb *     dequeue_from_ready(void);
+pcb *     dequeue_from_stopped(void);
 int       num_ready_processes(void);
 int       get_num_stopped_processes(void);
 int       get_state(int pid);
-pcb       *get_pcb(PID_t pid);
+pcb *     get_pcb(PID_t pid);
 int       get_pcb_index(PID_t pid);
 int       is_stopped(pcb *process);
 void      wait_for_free_pcbs(int num_pcbs);
@@ -178,13 +178,16 @@ void      print_queue(pcb_queue *queue);
 void      dump_queues(void);
 void      validate_stopped_queue(void);
 
+
 // create.c
 int  create(void (*func)(void), int stack_size);
 void create_idle_process(void);
 
+
 // user.c
 void root(void);
 void idleproc(void);
+
 
 // syscall.c
 unsigned int syscreate(void (*func)(void), int stack_size);
@@ -201,6 +204,7 @@ int          syssighandler(int signal, void (*newHandler)(void *), void (**oldHa
 void         syssigreturn(void *old_sp);
 int          syswait(PID_t pid);
 
+
 // msg.c
 PID_t generate_pid(pcb *process);
 void  send(pcb *sender, PID_t dest_pid, unsigned long num);
@@ -209,10 +213,12 @@ void  remove_from_ipc_queues(pcb *process);
 void  notify_dependent_processes(pcb *process);
 int   is_blocked(pcb *process);
 
+
 // sleep.c
 int  sleep(pcb *process, unsigned int milliseconds);
 void tick(void);
 void print_sleep_list(void);
+
 
 // tests
 void test_memory_manager(void);
