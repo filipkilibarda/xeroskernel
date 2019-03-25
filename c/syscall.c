@@ -23,10 +23,7 @@
 extern int end;
 static int return_value;
 static int req_id;
-// TODO: Maybe this should go in signal.c?
-// Signal masks, used for updating sig_mask
-const unsigned long sig_masks[5] =
-{0x0000001E, 0x0000001D, 0x0000001B, 0x00000017, 0x0000000F};
+
 
 /**
  * Generic system call function.
@@ -104,17 +101,6 @@ extern void sysputs(char *str) {
  * It is OK for a process to kill itself.
  */
 extern int syskill(PID_t pid, int signalNumber) {
-    // TODO: These checks should be done on the kernel side.
-    //  (If this were a real system)
-    //  Since these functions all live in user space, a malicious
-    //  could simply bypass these checks by executing an int instrcution
-    //  themselves and trapping into the kernel with invalid arguments.
-    pcb *process_pcb = get_pcb(pid);
-    if (!process_pcb) return -514;
-
-    // Determine if signalNumber is valid
-    if (signalNumber < 0 || signalNumber > 31) return -583;
-
     return syscall(SYSCALL_KILL, pid, signalNumber);
 }
 
@@ -182,28 +168,7 @@ extern unsigned int syssleep(unsigned int milliseconds) {
  * - on success, return 0
  */
 int syssighandler(int signal, void (*newHandler)(void *), void (**oldHandler)(void *)) {
-
-    // Check that signal number is valid
-    if (signal < 0 || signal > 30) return -1;
-
-    // Check that newHandler is in valid memory space
-    if ((int*) newHandler < &end
-    || ((int) newHandler > HOLESTART && (int) newHandler < HOLEEND)
-    || (int) newHandler > END_OF_MEMORY) return -2;
-
-    // Check that oldHandler is in valid memory space
-    if ((int*) oldHandler < &end
-    || ((int) oldHandler > HOLESTART && (int) oldHandler < HOLEEND)
-    || (int) oldHandler > END_OF_MEMORY) return -3;
-
-    // At this point we're good, register new handler
-    PID_t current_process = sysgetpid();
-    pcb *current_pcb = get_pcb(current_process);
-    void (*old_func)(void *) = current_pcb->sig_handlers[signal];
-    *oldHandler = old_func;
-    current_pcb->sig_handlers[signal] = newHandler;
-
-    return 0;
+    return syscall(SYSCALL_SIG_HANDLER, signal, newHandler, oldHandler);
 }
 
 /**
@@ -215,23 +180,7 @@ int syssighandler(int signal, void (*newHandler)(void *), void (**oldHandler)(vo
  * can be delivered again.
  */
 void syssigreturn(void *old_sp) {
-
-    PID_t current_process = sysgetpid();
-    pcb *current_pcb = get_pcb(current_process);
-
-    // TODO: Ensure this is the right approach to store/restore old ret value
-    current_pcb->ret_value = current_pcb->old_ret_value;
-
-    // Determine which signal was just sent and reset its bit in mask
-    //int *signal = value on signal stack frame depending on how it's set up
-    //unsigned long mask = sig_masks[*signal];
-    //pcb->sig_mask = pcb->sig_mask & mask;
-
-    // Update stack pointer
-    current_pcb->stack_ptr = old_sp;
-
-    // Call context switcher, I think?
-    contextswitch(current_pcb);
+    return syscall(SYSCALL_SIG_RETURN, old_sp);
 }
 
 
@@ -245,12 +194,7 @@ void syssigreturn(void *old_sp) {
  * - if interrupted by signal, returns value indicating so
  */
 int syswait(PID_t pid) {
-
-    // TODO: Block calling process, and return it to ready
-    // queue once the process it's waiting on is dead
-
-    // Stub
-    return 0;
+    return syscall(SYSCALL_WAIT, pid);
 }
 
 

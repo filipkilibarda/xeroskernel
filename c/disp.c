@@ -10,7 +10,8 @@
 #include <i386.h>
 #include <test.h>
 
-
+typedef void (*funcptr_t)(void *);
+extern int end;
 char *proc_state_str[4] = {"READY", "RUNNING", "STOPPED", "BLOCKED"};
 
 void free_process_memory(pcb *process);
@@ -84,15 +85,18 @@ extern void dispatch(void) {
     int request;
     int priority;                 // used in SYSCALL_SET_PRIO
     char *message;                // used in SYSCALL_PUTS
-    PID_t pid;                    // used in SYSCALL_KILL
+    PID_t pid;                    // used in SYSCALL_KILL & WAIT
     void *process_func_ptr;       // used in SYSCALL_CREATE
     unsigned int milliseconds;    // used in SYSCALL_SLEEP
     int stack_size;               // used in SYSCALL_CREATE
     unsigned long *num;           // used in SYSCALL_RECV
     PID_t *pid_ptr;               // used in SYSCALL_RECV
     unsigned long data;           // used in SYSCALL_SEND
-    int signalNumber;             // used in SYSCALL_KILL
+    int signalNumber;             // used in SYSCALL_KILL & SIG_HANDLER
     process_statuses *proc_stats; // used in SYSCALL_GET_CPU_TIMES
+    funcptr_t newHandler;         // used in SYSCALL_SIG_HANDLER
+    funcptr_t *oldHandler;        // used in SYSCALL_SIG_HANDLER
+    int is_valid_pid;             // used in SYSCALL_WAIT
 
     // Grab the first process to service
     pcb *process = dequeue_from_ready();
@@ -143,8 +147,19 @@ extern void dispatch(void) {
                 pid = *((PID_t *) (process->eip_ptr + 24));
                 signalNumber = *((int *) (process->eip_ptr + 28)); 
                 
-                if (signalNumber == 9) {
-                    kill(pid);
+                // Make sure pid to send to exists
+                pcb *process_pcb = get_pcb(pid);
+                if (!process_pcb) process->ret_value = -514;
+
+                // Determine if signalNumber is valid
+                else if (signalNumber < 0 || signalNumber > 31)
+                process->ret_value = -583;
+                
+                // TODO: Move all this functionality into signal()
+                // so we only have to make one call to signal() here
+                else if (signalNumber == 9) {
+                    kill(pid); 
+                    process->ret_value = 0;
                     // Check if process killed itself,
                     // if not, enqueue process back to ready
                     if (process->state != PROC_STOPPED) {
@@ -202,6 +217,64 @@ extern void dispatch(void) {
                 num = *((unsigned long**) (process->eip_ptr + 28));
                 recv(process, pid_ptr, num);
                 process = dequeue_from_ready();
+                break;
+
+            case SYSCALL_SIG_HANDLER:
+                signalNumber = *((int *) (process->eip_ptr + 24));
+                newHandler = *((funcptr_t *) (process->eip_ptr + 28));
+                oldHandler = *((funcptr_t **) (process->eip_ptr + 32));
+                // Check that signal number is valid
+                if (signalNumber < 0 || signalNumber > 30) process->ret_value = -1;
+
+                // Check that newHandler is in valid memory space
+                else if ((int*) newHandler < &end
+                || ((int) newHandler > HOLESTART && (int) newHandler < HOLEEND)
+                || (int) newHandler > END_OF_MEMORY) process->ret_value = -2;
+
+                // Check that oldHandler is in valid memory space
+                else if ((int*) oldHandler < &end
+                || ((int) oldHandler > HOLESTART && (int) oldHandler < HOLEEND)
+                || (int) oldHandler > END_OF_MEMORY) process->ret_value = -3;
+
+                else {
+                    // At this point we're good, register new handler
+                    void (*old_func)(void *) = process->sig_handlers[signalNumber];
+                    *oldHandler = old_func;
+                    process->sig_handlers[signalNumber] = newHandler;
+                    process->ret_value = 0;
+                }
+
+                enqueue_in_ready(process);
+                process = dequeue_from_ready();
+
+            case SYSCALL_SIG_RETURN:
+                // TODO: Do we need to do argument checking of old_sp?
+                // I don't think so because it will only get called from trampoline
+
+                // TODO: Ensure this is the right approach to store/restore old ret value
+                process->ret_value = process->old_ret_value;
+
+                // Determine which signal was just sent and reset its bit in mask
+                //int *signal = value on signal stack frame depending on how it's set up
+                //unsigned long mask = sig_masks[*signal];
+                //pcb->sig_mask = pcb->sig_mask & mask;
+
+                // Update stack pointer
+                process->stack_ptr = old_sp;
+            
+            case SYSCALL_WAIT:
+                pid = *((PID_t) (process->eip_ptr + 24));
+                is_valid_pid = is_valid_pid(pid);
+                if (is_valid_pid == -1) process->ret_value = -1;
+
+                // Block process
+                process->state = PROC_BLOCKED;
+                // TODO: I assume we need to add this process to some 
+                // data structure belonging to the process we're waiting
+                // for (queue of waiters?)
+
+                process = dequeue_from_ready();
+
                 break;
 
             case SYSCALL_GET_CPU_TIMES:
@@ -478,6 +551,14 @@ int get_pcb_index(PID_t pid) {
     return pid % MAX_PCBS;
 }
 
+/**
+ * Returns 0 if the given pid is valid, else -1 
+ **/
+int is_valid_pid(PID_t pid) {
+    pcb corresponding_pcb = pcb_table[pid % MAX_PCBS];
+    if (corresponding_pcb.pid != pid) return -1;
+    return 0;
+}
 
 /**
  * Returns the ready queue for a given priority of process

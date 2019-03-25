@@ -41,6 +41,9 @@ typedef unsigned int size_t; /* Something that can hold the value of
 #define TIMER_INT 10
 #define SYSCALL_SLEEP 11
 #define SYSCALL_GET_CPU_TIMES 12
+#define SYSCALL_SIG_HANDLER 13
+#define SYSCALL_SIG_RETURN 14
+#define SYSCALL_WAIT 15
 
 #define END_OF_MEMORY 0x400000
 #define DEFAULT_STACK_SIZE 4096
@@ -122,6 +125,8 @@ struct pcb_s {
     PID_t sending_to_pid;     // PID that this is blocked sending to.
     void *sig_handlers[32];
     unsigned long sig_mask;
+    unsigned long sig_prio;   // The current highest priority signal for this process 
+    pcb_queue waiter_queue;   // pcbs wanting to wait for this to end.
 };
 typedef struct pcb_s pcb;
 
