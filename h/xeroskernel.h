@@ -126,6 +126,7 @@ typedef struct safety_zone_s safety_zone;
 #define SYSCALL_RECV 9
 #define TIMER_INT 10
 #define SYSCALL_SLEEP 11
+#define SYSCALL_GET_CPU_TIMES 12
 
 #define END_OF_MEMORY 0x400000
 #define DEFAULT_STACK_SIZE 4096

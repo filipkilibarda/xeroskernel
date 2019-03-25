@@ -152,3 +152,13 @@ extern int sysrecv(PID_t *from_pid, unsigned long *num) {
 extern unsigned int syssleep(unsigned int milliseconds) {
     return syscall(SYSCALL_SLEEP, milliseconds);
 }
+
+
+/**
+ * Populate the given structure with cpu time and state information about all
+ * the active processes in the system.
+ */
+extern int sysgetcputimes(process_statuses *proc_stats) {
+    return syscall(SYSCALL_GET_CPU_TIMES, proc_stats);
+}
+

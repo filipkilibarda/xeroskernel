@@ -195,6 +195,14 @@ extern void dispatch(void) {
                 process = dequeue_from_ready();
                 break;
 
+            case SYSCALL_GET_CPU_TIMES:
+                process_statuses *proc_stats =
+                        (process_statuses *) (process->eip_ptr + 24);
+                process->ret = get_cpu_times(proc_stats);
+                enqueue_in_ready(process);
+                process = dequeue_from_ready();
+                break;
+
             case TIMER_INT:
                 // Tick the clock and signal completion
                 tick();
@@ -554,16 +562,17 @@ void wait_for_free_pcbs(int num_pcbs) {
 
 
 /**
- * This function is the system side of the sysgetcputimes call.
- * It places into a the structure being pointed to information about
- * each currently active process.
- *     p   - a pointer into the pcbtab of the currently active process
- *     proc_stats  - a pointer to a process_statuses structure that is
- *           filled with information about all the processes currently in the system
+ * This function is the system side of the sysgetcputimes call. It places into a
+ * the structure being pointed to information about each currently active
+ * process.
+ *
+ * Args:
+ *     proc_stats: a pointer to a process_statuses structure that is filled with
+ *                 information about all the processes currently in the system
  *
  * Return: The index of the last slot in process_statuses that got
- *          filled in. Basically, this is the number of active processes
- *          minus one.
+ *         filled in. Basically, this is the number of active processes
+ *         minus one.
  **/
 int get_cpu_times(process_statuses *proc_stats) {
 
