@@ -182,6 +182,7 @@ void      print_pcb_table(void);
 void      print_queue(pcb_queue *queue);
 void      dump_queues(void);
 void      validate_stopped_queue(void);
+void      enqueue_in_waiters(pcb *process, pcb *wait_for);
 
 
 // create.c
@@ -227,6 +228,7 @@ void print_sleep_list(void);
 // signal.c
 int signal(PID_t pid, int signalNumber);
 void sigtramp(void (*handler)(void *), void *context);
+unsigned long get_sig_mask(int signalNumber);
 
 // tests
 void test_memory_manager(void);

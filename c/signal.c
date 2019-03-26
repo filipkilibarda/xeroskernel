@@ -59,7 +59,7 @@ int signal(PID_t pid, int signalNumber) {
 
     // Update signal mask (should be done no matter what) 
     process_to_signal->sig_mask = 
-    process_to_signal->sig_mask ^ sig_masks[signalNumber];
+    process_to_signal->sig_mask | sig_masks[signalNumber];
 
     proc_stack = process_to_signal->stack_ptr;
     CS = getCS();
@@ -109,14 +109,14 @@ void init_signal_context(pcb *process_to_signal) {
             push EFLAGS \n\
             push CS \n\
             push EIP \n\
-            push GP_REGISTER \n\
-            push GP_REGISTER \n\
-            push GP_REGISTER \n\
-            push GP_REGISTER \n\
-            push GP_REGISTER \n\
             push signal_code \n\
             push proc_stack \n\
             push OLD_RV \n\
+            push GP_REGISTER \n\
+            push GP_REGISTER \n\
+            push GP_REGISTER \n\
+            push GP_REGISTER \n\
+            push GP_REGISTER \n\
             movl %%esp, proc_stack \n\
             movl kern_stack, %%esp \n\
         "
@@ -145,4 +145,11 @@ int get_highest_signal_number(unsigned long sig_mask) {
     // because I made the mask values go from 1 - 32, 
     // subtract 1 to get the actual signal number
     return highest_so_far - 1;
+}
+
+/**
+ * Returns the signal mask for a specified signal number
+ */
+unsigned long get_sig_mask(int signalNumber) {
+    return sig_masks[signalNumber];
 }

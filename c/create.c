@@ -101,9 +101,11 @@ pcb *setup_process(void (*func)(void), int stack_size, int priority) {
     free_pcb->sig_mask = (unsigned long) 0x00000000;
 
     // Initialize all signal handlers to NULL
-    for (int i = 0; i < 32; i++) {
+    for (int i = 0; i < 31; i++) {
         free_pcb->sig_handlers[i] = NULL;
     }
+    
+    free_pcb->sig_handlers[31] = &sysstop;
 
     return free_pcb;
 }

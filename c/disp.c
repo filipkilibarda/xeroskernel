@@ -99,6 +99,7 @@ extern void dispatch(void) {
     funcptr_t newHandler;         // used in SYSCALL_SIG_HANDLER
     funcptr_t *oldHandler;        // used in SYSCALL_SIG_HANDLER
     int valid_pid;                // used in SYSCALL_WAIT
+    void *old_sp;                 // used in SYSCALL_SIGRETURN
 
     // Grab the first process to service
     pcb *process = dequeue_from_ready();
@@ -157,8 +158,8 @@ extern void dispatch(void) {
                 else if (signalNumber < 0 || signalNumber > 31)
                 process->ret_value = -583;
                 
-                // TODO: Move all this functionality into signal()
-                // so we only have to make one call to signal() here
+                // TODO: This will be done by signal trampoline
+                // this is here for now so that everything doesn't break
                 else if (signalNumber == 9) {
                     kill(pid); 
                     process->ret_value = 0;
@@ -170,7 +171,7 @@ extern void dispatch(void) {
 
                     process = dequeue_from_ready();
                 } else {
-                    // Call signal(pid, signalNumber)
+                    signal(pid, signalNumber);
                 }
 
                 break;
@@ -248,30 +249,45 @@ extern void dispatch(void) {
 
                 enqueue_in_ready(process);
                 process = dequeue_from_ready();
+                break;
 
             case SYSCALL_SIG_RETURN:
                 // TODO: Do we need to do argument checking of old_sp?
                 // I don't think so because it will only get called from trampoline
-
+                old_sp = *((void **) (process->eip_ptr + 24));
+                
                 // Determine which signal was just sent and reset its bit in mask
-                //int *signal = value on signal stack frame depending on how it's set up
-                //unsigned long mask = sig_masks[*signal];
-                //pcb->sig_mask = pcb->sig_mask & mask;
+                signalNumber = *((int *) (process->eip_ptr - 4));
+                unsigned long mask = get_sig_mask(signalNumber);
+                process->sig_mask = process->sig_mask ^ mask;
 
                 // Update stack pointer
-                //process->stack_ptr = old_sp;
+                process->stack_ptr = old_sp;
+
+                enqueue_in_ready(process);
+                process = dequeue_from_ready();
                 break;
             
             case SYSCALL_WAIT:
                 pid = *((PID_t *) (process->eip_ptr + 24));
                 valid_pid = is_valid_pid(pid);
-                if (valid_pid == -1) process->ret_value = -1;
-
-                // Block process
-                process->state = PROC_BLOCKED;
-                // TODO: I assume we need to add this process to some 
-                // data structure belonging to the process we're waiting
-                // for (queue of waiters?)
+                if (valid_pid == -1) {
+                    process->ret_value = -1;
+                    enqueue_in_ready(process);
+                }
+                // Check that process isn't waiting on self
+                else if (process->pid == pid) {
+                    process->ret_value = -1;
+                    enqueue_in_ready(process);
+                }
+                else {
+                    // Block process
+                    process->state = PROC_BLOCKED;
+                    // TODO: I assume we need to add this process to some 
+                    // data structure belonging to the process we're waiting
+                    // for (queue of waiters?)
+                    enqueue_in_waiters(process, get_pcb(pid));
+                }
 
                 process = dequeue_from_ready();
 
@@ -465,6 +481,18 @@ void enqueue_in_ready(pcb *process) {
         FAIL("Bug. Idle process should never be enqueued!");
     process->state = PROC_READY;
     enqueue(ready_queues[process->priority], process);
+}
+
+/**
+ * Enqueues the supplied process into the waiter queue
+ * for the specified wait_for process.
+ */
+void enqueue_in_waiters(pcb *process, pcb *wait_for) {
+    // TODO: can I just reuse enqueue function?
+    // (because it messes with the next field and that 
+    // might mess things up if a process is signaled while
+    // on another queue [i.e. senders, receivers])
+    enqueue(&wait_for->waiter_queue, process);
 }
 
 
