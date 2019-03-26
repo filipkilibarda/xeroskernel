@@ -180,7 +180,7 @@ int syssighandler(int signal, void (*newHandler)(void *), void (**oldHandler)(vo
  * can be delivered again.
  */
 void syssigreturn(void *old_sp) {
-    return syscall(SYSCALL_SIG_RETURN, old_sp);
+    syscall(SYSCALL_SIG_RETURN, old_sp);
 }
 
 

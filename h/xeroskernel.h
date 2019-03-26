@@ -224,6 +224,9 @@ int  sleep(pcb *process, unsigned int milliseconds);
 void tick(void);
 void print_sleep_list(void);
 
+// signal.c
+int signal(PID_t pid, int signalNumber);
+void sigtramp(void (*handler)(void *), void *context);
 
 // tests
 void test_memory_manager(void);

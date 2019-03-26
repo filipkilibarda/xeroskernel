@@ -18,6 +18,8 @@ void free_process_memory(pcb *process);
 pcb *get_pcb(PID_t pid);
 int count_pcbs(pcb_queue *queue);
 int get_cpu_times(process_statuses *proc_stats);
+int is_valid_pid(PID_t pid);
+
 
 // Set up stopped queue
 static pcb_queue _stopped_queue;
@@ -96,7 +98,7 @@ extern void dispatch(void) {
     process_statuses *proc_stats; // used in SYSCALL_GET_CPU_TIMES
     funcptr_t newHandler;         // used in SYSCALL_SIG_HANDLER
     funcptr_t *oldHandler;        // used in SYSCALL_SIG_HANDLER
-    int is_valid_pid;             // used in SYSCALL_WAIT
+    int valid_pid;                // used in SYSCALL_WAIT
 
     // Grab the first process to service
     pcb *process = dequeue_from_ready();
@@ -251,21 +253,19 @@ extern void dispatch(void) {
                 // TODO: Do we need to do argument checking of old_sp?
                 // I don't think so because it will only get called from trampoline
 
-                // TODO: Ensure this is the right approach to store/restore old ret value
-                process->ret_value = process->old_ret_value;
-
                 // Determine which signal was just sent and reset its bit in mask
                 //int *signal = value on signal stack frame depending on how it's set up
                 //unsigned long mask = sig_masks[*signal];
                 //pcb->sig_mask = pcb->sig_mask & mask;
 
                 // Update stack pointer
-                process->stack_ptr = old_sp;
+                //process->stack_ptr = old_sp;
+                break;
             
             case SYSCALL_WAIT:
-                pid = *((PID_t) (process->eip_ptr + 24));
-                is_valid_pid = is_valid_pid(pid);
-                if (is_valid_pid == -1) process->ret_value = -1;
+                pid = *((PID_t *) (process->eip_ptr + 24));
+                valid_pid = is_valid_pid(pid);
+                if (valid_pid == -1) process->ret_value = -1;
 
                 // Block process
                 process->state = PROC_BLOCKED;
