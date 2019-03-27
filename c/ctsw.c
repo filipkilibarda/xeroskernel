@@ -14,16 +14,18 @@
  **/
 
 #include <xeroskernel.h>
-#include "i386.h"
-#include "test.h"
+#include <i386.h>
+#include <test.h>
+#include <kbd.h>
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-variable"
 static void *kern_stack;
 #pragma GCC diagnostic pop
 
-void _ISREntryPoint(void);
-void _TimerEntryPoint(void);
+void _syscall_entry(void);
+void _timer_entry(void);
+void _keyboard_entry(void);
 static void *ESP;
 static void *eip_ptr;
 static unsigned long req_id;
@@ -40,38 +42,38 @@ int contextswitch(pcb *process) {
 
     ESP = process->stack_ptr;
     retval = process->ret_value;
-    __asm __volatile( " \
-        pushf \n\
-        pusha \n\
-        movl %%esp, kern_stack \n\
-        movl ESP, %%esp \n\
-        popa \n\
-        movl retval, %%eax \n\
-        iret \n\
-    _TimerEntryPoint: \n\
-        cli \n\
-        movl %%esp, eip_ptr \n\
-        pusha \n\
-        movl $10, %%ecx \n\
-        jmp _CommonEntry \n\
-    _ISREntryPoint: \n\
-        cli \n\
-        movl %%esp, eip_ptr \n\
-        pusha \n\
-        movl $0, %%ecx \n\
-    _CommonEntry: \n\
-        movl %%ecx, interrupt_type \n\
-        movl %%esp, ESP \n\
-        movl %%eax, req_id \n\
-        movl kern_stack, %%esp \n\
-        popa \n\
-        movl req_id, %%eax \n\
-        popf \n\
-            "
+    __asm __volatile(
+            "pushf;"
+            "pusha;"
+            "movl %%esp, kern_stack;"
+            "movl ESP, %%esp;"
+            "popa;"
+            "movl retval, %%eax;"
+            "iret;"
+        "_keyboard_entry:"
+            "cli;"
+        "_timer_entry:"
+            "cli;"
+            "movl %%esp, eip_ptr;"
+            "pusha;"
+            "movl $10, %%ecx;"
+            "jmp _common_entry;"
+        "_syscall_entry:"
+            "cli;"
+            "movl %%esp, eip_ptr;"
+            "pusha;"
+            "movl $0, %%ecx;"
+        "_common_entry:"
+            "movl %%ecx, interrupt_type;"
+            "movl %%esp, ESP;"
+            "movl %%eax, req_id;"
+            "movl kern_stack, %%esp;"
+            "popa;"
+            "movl req_id, %%eax;"
+            "popf;"
         :
         :
-        : "%eax", "%ecx"
-        );
+        : "%eax", "%ecx");
 
         // Check if an interrupt occurred
         if (interrupt_type) {
@@ -87,10 +89,8 @@ int contextswitch(pcb *process) {
 
 // Set up IDT entry points and timer quantum
 extern void contextinit() {
-    set_evec(60, (unsigned long) _ISREntryPoint);
-    set_evec(32, (unsigned long) _TimerEntryPoint);
-    // TODO: How do we choose which index in the IDT to put the keyboard ISR?
-    //  Guessing it'll be 33, but what's the reason for that?
-//    set_evec(KEYBOARD_INT_NUM, (unsigned long) _KeyboardEntryPoint);
+    set_evec(SYSCALL_IDT_INDEX, (unsigned long) _syscall_entry);
+    set_evec(32, (unsigned long) _timer_entry);
+    set_evec(KEYBOARD_IDT_INDEX, (unsigned long) _keyboard_entry);
     initPIT(100);
 }
