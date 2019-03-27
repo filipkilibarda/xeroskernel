@@ -28,22 +28,27 @@ typedef unsigned int size_t; /* Something that can hold the value of
 #define	BLOCKERR     -5         /* non-blocking op would block  */
 
 // Syscall request IDs
-#define SYSCALL_CREATE 0
-#define SYSCALL_YIELD 1
-#define SYSCALL_STOP 2
-#define SYSCALL_RUNNING 3
-#define SYSCALL_GET_PID 4
-#define SYSCALL_PUTS 5
-#define SYSCALL_KILL 6
-#define SYSCALL_SET_PRIO 7
-#define SYSCALL_SEND 8
-#define SYSCALL_RECV 9
-#define TIMER_INT 10
-#define SYSCALL_SLEEP 11
-#define SYSCALL_GET_CPU_TIMES 12
-#define SYSCALL_SIG_HANDLER 13
-#define SYSCALL_SIG_RETURN 14
-#define SYSCALL_WAIT 15
+#define SYSCALL_CREATE         0
+#define SYSCALL_YIELD          1
+#define SYSCALL_STOP           2
+#define SYSCALL_RUNNING        3
+#define SYSCALL_GET_PID        4
+#define SYSCALL_PUTS           5
+#define SYSCALL_KILL           6
+#define SYSCALL_SET_PRIO       7
+#define SYSCALL_SEND           8
+#define SYSCALL_RECV           9
+#define TIMER_INT              10
+#define SYSCALL_SLEEP          11
+#define SYSCALL_GET_CPU_TIMES  12
+#define SYSCALL_SIG_HANDLER    13
+#define SYSCALL_SIG_RETURN     14
+#define SYSCALL_WAIT           15
+#define SYSCALL_OPEN           16
+#define SYSCALL_CLOSE          17
+#define SYSCALL_WRITE          18
+#define SYSCALL_READ           19
+#define SYSCALL_IOCTL          20
 
 #define END_OF_MEMORY 0x400000
 #define DEFAULT_STACK_SIZE 4096

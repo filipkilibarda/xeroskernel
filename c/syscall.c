@@ -206,3 +206,48 @@ extern int sysgetcputimes(process_statuses *proc_stats) {
     return syscall(SYSCALL_GET_CPU_TIMES, proc_stats);
 }
 
+
+/**
+ * Open a device. Return the file descriptor on success.
+ * TODO more details
+ */
+extern int sysopen(int device_no) {
+    return syscall(SYSCALL_OPEN, device_no);
+}
+
+
+/**
+ * Close a device.
+ * TODO more details
+ */
+extern int sysclose(int fd) {
+    return syscall(SYSCALL_CLOSE, fd);
+}
+
+
+/**
+ * Write to a device.
+ * TODO more details
+ */
+extern int syswrite(int fd, void *buff, int bufflen) {
+    return syscall(SYSCALL_WRITE, buff, bufflen);
+}
+
+
+/**
+ * Read from a device.
+ * TODO more details
+ */
+extern int sysread(int fd, void *buff, int bufflen) {
+    return syscall(SYSCALL_READ, buff, bufflen);
+}
+
+
+/**
+ * Read from a device.
+ * TODO more details
+ */
+extern int sysioctl(int fd, unsigned long command, ...) {
+    // TODO: Figure out how to use va_args here.
+    return syscall(SYSCALL_IOCTL, command);
+}
