@@ -25,7 +25,10 @@ static unsigned long CS;
 static void *EIP;
 static void *ESP;
 
-pcb *setup_process(void (*func)(void), int stack_size, int priority);
+static pcb *setup_process(void (*func)(void), int stack_size, int priority);
+
+// Pointer to the idle process
+pcb *idle_process;
 
 
 /**

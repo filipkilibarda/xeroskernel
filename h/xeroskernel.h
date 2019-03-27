@@ -242,10 +242,7 @@ void test_ipc(void);
 void test_sleep(void);
 void test_time_slice(void);
 
-// It helps if this is accessible from other modules.
-pcb pcb_table[MAX_PCBS];
-
-// Pointer to the idle process
-pcb *idle_process;
+extern pcb pcb_table[MAX_PCBS];
+extern pcb *idle_process; // Pointer to the idle process
 
 #endif

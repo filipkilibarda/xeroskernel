@@ -12,14 +12,14 @@
 
 typedef void (*funcptr_t)(void *);
 extern int end;
-char *proc_state_str[4] = {"READY", "RUNNING", "STOPPED", "BLOCKED"};
+pcb pcb_table[MAX_PCBS];
 
 void free_process_memory(pcb *process);
-pcb *get_pcb(PID_t pid);
 int count_pcbs(pcb_queue *queue);
 int get_cpu_times(process_statuses *proc_stats);
 int is_valid_pid(PID_t pid);
 
+static char *proc_state_str[4] = {"READY", "RUNNING", "STOPPED", "BLOCKED"};
 
 // Set up stopped queue
 static pcb_queue _stopped_queue;
