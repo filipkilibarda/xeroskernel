@@ -139,25 +139,26 @@ struct pcb_s {
 };
 typedef struct pcb_s pcb;
 
+// TODO: Update func decl. below s.t. take actual params
 typedef struct device device_t;
 struct device {
     int  major_num;
     int  minor_num;
     char *name;
-    int  (*init)();
-    int  (*open)();
-    int  (*close)();
-    int  (*read)();
-    int  (*write)();
-    int  (*seek)();
-    int  (*getc)();
-    int  (*putc)();
-    int  (*cntl)();
+    int  (*init)(void);
+    int  (*open)(void);
+    int  (*close)(void);
+    int  (*read)(void);
+    int  (*write)(void);
+    int  (*seek)(void);
+    int  (*getc)(void);
+    int  (*putc)(void);
+    int  (*cntl)(void);
     void *csr;
     void *ivec;
     void *ovec;
-    int  (*iint)();
-    int  (*oint)();
+    int  (*iint)(void);
+    int  (*oint)(void);
     void *ioblk;
 };
 
@@ -269,6 +270,6 @@ void test_time_slice(void);
 
 extern pcb pcb_table[];       // The table of process ctrl blocks
 extern pcb *idle_process;     // Pointer to the idle process
-extern device device_table[]; // The device table
+extern device_t device_table[]; // The device table
 
 #endif
