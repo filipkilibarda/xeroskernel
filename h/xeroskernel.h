@@ -62,6 +62,10 @@ typedef unsigned int size_t; /* Something that can hold the value of
 #define PROC_STOPPED 2
 #define PROC_BLOCKED 3
 
+// TODO: Assignment description says only 2 devices will be in our kernel so
+//  that's why I'm choosing 2 here.
+#define MAX_DEVICES 2
+
 // TODO: Total guess. I just don't feel like figuring out how many
 //  milliseconds I should actually put here right now.
 #define TICK_MILLISECONDS 100
@@ -135,6 +139,27 @@ struct pcb_s {
 };
 typedef struct pcb_s pcb;
 
+typedef struct device device_t;
+struct device {
+    int  major_num;
+    int  minor_num;
+    char *name;
+    int  (*init)();
+    int  (*open)();
+    int  (*close)();
+    int  (*read)();
+    int  (*write)();
+    int  (*seek)();
+    int  (*getc)();
+    int  (*putc)();
+    int  (*cntl)();
+    void *csr;
+    void *ivec;
+    void *ovec;
+    int  (*iint)();
+    int  (*oint)();
+    void *ioblk;
+};
 
 // TODO: Clarify w/ TAs if this struct should be exactly the same as
 //  what they gave us for a3 starter code
@@ -242,7 +267,8 @@ void test_ipc(void);
 void test_sleep(void);
 void test_time_slice(void);
 
-extern pcb pcb_table[MAX_PCBS];
-extern pcb *idle_process; // Pointer to the idle process
+extern pcb pcb_table[];       // The table of process ctrl blocks
+extern pcb *idle_process;     // Pointer to the idle process
+extern device device_table[]; // The device table
 
 #endif

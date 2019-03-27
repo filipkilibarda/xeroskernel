@@ -1,4 +1,5 @@
-/** di_calls.c: device independent functions
+/**
+ * di_calls.c: device independent functions
  *
  * Implements various device independent kernel functions for handling system
  * calls interacting with device.

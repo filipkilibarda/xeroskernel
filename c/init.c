@@ -15,6 +15,7 @@ extern	int	end( void );    /* end of kernel image, use &end        */
 extern  long	freemem; 	/* start of free memory (set in i386.c) */
 extern char	*maxaddr;	/* max memory address (set in i386.c)	*/
 
+device device_table[MAX_DEVICES]; // Initialize the device table.
 
 /************************************************************************/
 /***				NOTE:				      ***/
