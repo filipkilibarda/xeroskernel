@@ -89,5 +89,8 @@ int contextswitch(pcb *process) {
 extern void contextinit() {
     set_evec(60, (unsigned long) _ISREntryPoint);
     set_evec(32, (unsigned long) _TimerEntryPoint);
+    // TODO: How do we choose which index in the IDT to put the keyboard ISR?
+    //  Guessing it'll be 33, but what's the reason for that?
+//    set_evec(KEYBOARD_INT_NUM, (unsigned long) _KeyboardEntryPoint);
     initPIT(100);
 }

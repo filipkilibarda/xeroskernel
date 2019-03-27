@@ -11,4 +11,9 @@
 #define KEYBOARD_ECHO_OFF   55
 #define KEYBOARD_ECHO_ON    56
 
+#define KEYBOARD_DATA_PORT    0x60 // Read keyboard data from this port
+#define KEYBOARD_COMMAND_PORT 0x64 // Read/write keyboard command data
+
+#define KEYBOARD_IRQ 1 // The IRQ line on the APIC where keyboard is connected
+
 #endif

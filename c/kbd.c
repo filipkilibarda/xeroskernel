@@ -13,6 +13,22 @@
 
 
 /**
+ * Enable interrupts from the keyboard.
+ */
+void keyboard_open(void) {
+    enable_irq(KEYBOARD_IRQ, 0);
+}
+
+
+/**
+ * Disable interrupts from the keyboard.
+ */
+void keyboard_close(void) {
+    enable_irq(KEYBOARD_IRQ, 1);
+}
+
+
+/**
  * Writing to keyboard is not supported so return -1.
  */
 int keyboard_write() {
@@ -52,4 +68,22 @@ int keyboard_read(pcb *process, void *buff, int bufflen) {
  */
 int keyboard_ioctl(int command, ...) {
     return 0; // TODO
+}
+
+
+/* ========================================================
+ *                        Lower half
+ * ======================================================== */
+
+
+int data_available() {
+    return inb(KEYBOARD_COMMAND_PORT) & 1;
+}
+
+
+/**
+ * Read a byte from the keyboard device.
+ */
+char read_byte() {
+    return inb(KEYBOARD_DATA_PORT);
 }
