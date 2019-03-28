@@ -30,7 +30,7 @@ static void *ESP;
 static void *eip_ptr;
 static unsigned long req_id;
 static unsigned long retval;
-static unsigned long interrupt_type;
+static unsigned long hardware_interrupt_num;
 
 /**
  * Top half handles context switch into process,
@@ -52,11 +52,15 @@ int contextswitch(pcb *process) {
             "iret;"
         "_keyboard_entry:"
             "cli;"
+            "movl %%esp, eip_ptr;"
+            "pusha;"
+            "movl %[keyboard], %%ecx;"
+            "jmp _common_entry;"
         "_timer_entry:"
             "cli;"
             "movl %%esp, eip_ptr;"
             "pusha;"
-            "movl $10, %%ecx;"
+            "movl %[timer], %%ecx;"
             "jmp _common_entry;"
         "_syscall_entry:"
             "cli;"
@@ -64,7 +68,7 @@ int contextswitch(pcb *process) {
             "pusha;"
             "movl $0, %%ecx;"
         "_common_entry:"
-            "movl %%ecx, interrupt_type;"
+            "movl %%ecx, hardware_interrupt_num;"
             "movl %%esp, ESP;"
             "movl %%eax, req_id;"
             "movl kern_stack, %%esp;"
@@ -72,14 +76,14 @@ int contextswitch(pcb *process) {
             "movl req_id, %%eax;"
             "popf;"
         :
-        :
+        : [keyboard] "i" (KEYBOARD_INT), [timer] "i" (TIMER_INT)
         : "%eax", "%ecx");
 
         // Check if an interrupt occurred
-        if (interrupt_type) {
+        if (hardware_interrupt_num) {
             // Want return value to be the same as original eax
             process->ret_value = req_id;
-            req_id = interrupt_type;
+            req_id = hardware_interrupt_num;
         }
 
         process->stack_ptr = ESP;
