@@ -142,7 +142,7 @@ struct pcb_s {
     PID_t sending_to_pid;     // PID that this is blocked sending to.
     void *sig_handlers[32];
     unsigned long sig_mask;
-    unsigned long sig_prio;   // The current highest priority signal for this process 
+    int sig_prio;             // The current highest priority signal for this process 
     pcb_queue waiter_queue;   // pcbs wanting to wait for this to end.
 };
 typedef struct pcb_s pcb;

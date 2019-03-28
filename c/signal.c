@@ -15,6 +15,7 @@ static void *kern_stack;
 static void *proc_stack;
 static unsigned long CS;
 static int signal_code;
+static void *handler;
 #pragma GCC diagnostic pop
 
 int get_highest_signal_number(unsigned long sig_mask);
@@ -52,7 +53,9 @@ unsigned long sig_masks[32] =
 int signal(PID_t pid, int signalNumber) {
 
     pcb *process_to_signal = get_pcb(pid);
-    
+    // Get the handler
+    handler = process_to_signal->sig_handlers[signalNumber];
+
     // Check if there's already a signal pending
     int pending_signal = 
     get_highest_signal_number(process_to_signal->sig_mask);
@@ -65,13 +68,14 @@ int signal(PID_t pid, int signalNumber) {
     CS = getCS();
     OLD_RV = process_to_signal->ret_value;
 
+    // kprintf("Pending signal: %d, signalNumber: %d\n", pending_signal, signalNumber);
+    // kprintf("PCB sig_prio: %d\n", process_to_signal->sig_prio);
     // If there's a pending signal with higher priority,
     // set up its signal context.
     if (pending_signal > signalNumber) {
         signal_code = pending_signal;
         init_signal_context(process_to_signal);
     }
-
     // Otherwise, check current signal priority to 
     // determine whether to send the signal 
     else if (process_to_signal->sig_prio < signalNumber) {
@@ -87,12 +91,14 @@ int signal(PID_t pid, int signalNumber) {
  * Signal trampoline placed on process stack as EIP when 
  * signal stack is set up. Calls the specified handler 
  * and performs a sigreturn. Does not return control to 
- * function after calling sigreturn. 
+ * function after calling syssigreturn. 
  **/ 
 extern void sigtramp(void (*handler)(void *), void *context) {
+    kprintf("SIGTRAMP: Calling handler\n");
     handler(context);
     // Rewind stack to point to old context, and 
     // restore previous return value.
+    kprintf("SIGTRAMP: Calling syssigreturn\n");
     syssigreturn(context);
 }
 
@@ -106,6 +112,8 @@ void init_signal_context(pcb *process_to_signal) {
         __asm __volatile( " \
             movl %%esp, kern_stack \n\
             movl proc_stack, %%esp \n\
+            push handler \n\
+            push GP_REGISTER \n\
             push EFLAGS \n\
             push CS \n\
             push EIP \n\
@@ -130,7 +138,7 @@ void init_signal_context(pcb *process_to_signal) {
 
 /**
  * Returns the highest signal number that exists in the mask.
- * If there is no signal pending in mask, returns -1.
+ * If there is no signal pending in mask, returns -2.
  */
 int get_highest_signal_number(unsigned long sig_mask) {
     int highest_so_far = 0;
@@ -144,6 +152,7 @@ int get_highest_signal_number(unsigned long sig_mask) {
 
     // because I made the mask values go from 1 - 32, 
     // subtract 1 to get the actual signal number
+    if (highest_so_far - 1 == -1) return -2;
     return highest_so_far - 1;
 }
 
