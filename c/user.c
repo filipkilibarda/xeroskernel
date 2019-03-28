@@ -141,14 +141,22 @@ void test_stack_too_big(void) {
  * resides because that's exactly where the "user" process code resides in
  * our current kernel.
  **/
- void test_invalid_process_code(void) {
+void test_invalid_process_code(void) {
     void *user_memory = kmalloc(4096);
     int create_result = syscreate(user_memory, 4096);
     ASSERT(create_result == -1, "Should not have been able to create process"); 
- }
+}
 
 
-#define VA_ARGS(...) , ##__VA_ARGS__
+/**
+ * Helper process for testing keyboard stuff.
+ */
+void test_keyboard(void) {
+    int fd = sysopen(0);
+    if (fd < 0)
+        FAIL("Failed to open the keyboard!");
+}
+
 
 #define PUTS(msg, ...) do {\
     sprintf(buff, "Process %d: ", process_pid);\

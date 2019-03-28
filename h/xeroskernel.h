@@ -73,6 +73,7 @@ typedef unsigned int size_t; /* Something that can hold the value of
 // TODO: Assignment description says only 2 devices will be in our kernel so
 //  that's why I'm choosing 2 here.
 #define MAX_DEVICES 2
+#define MAX_OPEN_FILES 4
 
 // TODO: Total guess. I just don't feel like figuring out how many
 //  milliseconds I should actually put here right now.
@@ -99,6 +100,15 @@ int            within_memory_bounds(unsigned long address);
 int            in_hole(unsigned long address);
 
 
+// Forward declarations of a bunch of following structs and stuff
+typedef struct device device_t;
+typedef struct mem_header_s mem_header;
+typedef unsigned int PID_t;
+typedef void (*funcptr_t)(void *);
+typedef struct pcb_s pcb;
+typedef struct fdt_entry fdt_entry_t;
+
+
 // Header struct used in memory allocation
 struct mem_header_s {
     unsigned long size;         // Size of memory chunk including this header
@@ -107,18 +117,23 @@ struct mem_header_s {
     char *sanity_check;         // Used for debugging.
     unsigned char mem_start[0]; // Start of the allocated memory
 };
-typedef struct mem_header_s mem_header;
 
-// NEW FOR A2
-typedef unsigned int PID_t;
-typedef void (*funcptr_t)(void *);
 
-struct pcb_s;
-
+// Generic queue of PCBs
 typedef struct pcb_queue_s {
-    struct pcb_s *front_of_line;
-    struct pcb_s *end_of_line;
+    pcb *front_of_line;
+    pcb *end_of_line;
 } pcb_queue;
+
+
+// File descriptor table entry
+struct fdt_entry {
+    int fdt_index;    // The index that this entry occupies in its fdt
+    device_t *device; // Pointer to the device that the fd is open for
+    // TODO: Might want more info here like whether the fdt_entry is actually
+    //  open. Maybe not, we'll see.
+};
+
 
 // Process Control Block
 struct pcb_s {
@@ -136,39 +151,51 @@ struct pcb_s {
     int priority;             // Scheduling priority.
     int sleep_time;
     long num_ticks;           // Number of ticks used by this.
-    struct pcb_s *next;       // Generic next pcb; used for queues.
+    pcb *next;                // Generic next pcb; used for queues.
     pcb_queue sender_queue;   // pcbs wanting to send to this.
     pcb_queue receiver_queue; // pcbs wanting to recv from this.
     PID_t receiving_from_pid; // PID that this is blocked receiving from.
     PID_t sending_to_pid;     // PID that this is blocked sending to.
-    void *sig_handlers[32];
+    void *sig_handlers[32];   // TODO: Un-hardcode this, use #define var
     unsigned long sig_mask;
-    int sig_prio;             // The current highest priority signal for this process 
+    int sig_prio;             // Current highest priority signal
     pcb_queue waiter_queue;   // pcbs wanting to wait for this to end.
+    fdt_entry_t fdt[MAX_OPEN_FILES];
 };
-typedef struct pcb_s pcb;
+
 
 // TODO: Update func decl. below s.t. take actual params
-typedef struct device device_t;
 struct device {
-    int  major_num;
-    int  minor_num;
-    char *name;
-    int  (*init)(void);
     int  (*open)(void);
     int  (*close)(void);
-    int  (*read)(void);
-    int  (*write)(void);
-    int  (*seek)(void);
-    int  (*getc)(void);
-    int  (*putc)(void);
-    int  (*cntl)(void);
-    void *csr;
-    void *ivec;
-    void *ovec;
-    int  (*iint)(void);
-    int  (*oint)(void);
-    void *ioblk;
+    int  (*read)(void *buff, int bufflen);
+    int  (*write)(void *buff, int bufflen);
+    int  (*ioctl)(int command, ...);
+    // TODO: Don't think we need the following stuff because we don't even
+    //  have the corresponding system calls available to the user.
+//    int  (*init)(void);
+//    int  (*seek)(void);
+//    int  (*getc)(void);
+//    int  (*putc)(void);
+//    int  (*cntl)(void);
+    // TODO: Don't think we need device name cause we're not mapping from
+    //  name->device_table_index anyway.
+//    char name[MAX_DEVICE_NAME_LEN];
+    // TODO: Honestly, the way we're doing it, we don't even need the major num,
+    //  just use the index of the device in the table as the major num. If we
+    //  were thinking about making our OS more general then yeah we'd need
+    //  it, but within the scope of this assignment we don't.
+//    int  major_num;
+    // TODO: Not sure what these are (taken from slides)
+//    void *csr;
+//    void *ivec;
+//    void *ovec;
+//    int  (*iint)(void);
+//    int  (*oint)(void);
+//    void *ioblk;
+    // TODO: The way I see it, there's no need for minor number for us?
+    //  What's the point of minor number anyway?
+//    int  minor_num;
 };
 
 // TODO: Clarify w/ TAs if this struct should be exactly the same as
@@ -195,6 +222,7 @@ extern void pcb_init(void);
 int         contextswitch(pcb *process);
 extern void dispatch(void);
 void        reset_pcb_table(void);
+
 
 // disp.c
 void      init_ipc(void);
@@ -249,6 +277,12 @@ unsigned int syssleep(unsigned int milliseconds);
 int          syssighandler(int signal, void (*newHandler)(void *), void (**oldHandler)(void *));
 void         syssigreturn(void *old_sp);
 int          syswait(PID_t pid);
+int          sysopen(int device_no);
+int          sysclose(int fd);
+int          syswrite(int fd, void *buff, int bufflen);
+int          sysread(int fd, void *buff, int bufflen);
+int          sysioctl(int fd, unsigned long command, ...);
+int          sysgetcputimes(process_statuses *proc_stats);
 
 
 // msg.c
@@ -265,10 +299,20 @@ int  sleep(pcb *process, unsigned int milliseconds);
 void tick(void);
 void print_sleep_list(void);
 
+
 // signal.c
 int signal(PID_t pid, int signalNumber);
 void sigtramp(void (*handler)(void *), void *context);
 unsigned long get_sig_mask(int signalNumber);
+
+
+// di_calls.c
+int di_open(pcb *process, int device_no);
+int di_close(pcb *process, int fd);
+int di_read(pcb *process, int fd);
+int di_write(pcb *process, int fd);
+int di_ioctl(pcb *process, int fd);
+
 
 // tests
 void test_memory_manager(void);

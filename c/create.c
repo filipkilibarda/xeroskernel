@@ -26,6 +26,7 @@ static void *EIP;
 static void *ESP;
 
 static pcb *setup_process(void (*func)(void), int stack_size, int priority);
+static void fdt_constructor(fdt_entry_t fdt[]);
 
 // Pointer to the idle process
 pcb *idle_process;
@@ -102,7 +103,10 @@ pcb *setup_process(void (*func)(void), int stack_size, int priority) {
     free_pcb->sending_to_pid = NULL;
     free_pcb->num_ticks = 0;
     free_pcb->sig_mask = (unsigned long) 0x00000000;
-    free_pcb->sig_prio = -1; // No signals have been sent, so no priority set. 
+    free_pcb->sig_prio = -1; // No signals have been sent, so no priority set.
+
+    // Setup a file descriptor table for this process.
+    fdt_constructor(free_pcb->fdt);
 
     // Initialize all signal handlers to NULL
     for (int i = 0; i < 31; i++) {
@@ -147,4 +151,16 @@ void create_idle_process(void) {
  **/
 PID_t generate_pid(pcb *process) {
     return process->pid + MAX_PCBS;
+}
+
+
+/**
+ * Setup a file descriptor table given a pointer to it.
+ */
+void fdt_constructor(fdt_entry_t fdt[]) {
+    // TODO: Might wanna get rid of fdt_index b/c we don't really need it
+    for (int i = 0; i < MAX_OPEN_FILES; i++) {
+        fdt[i].fdt_index = i;
+        fdt[i].device = NULL;
+    }
 }

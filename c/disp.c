@@ -100,7 +100,8 @@ extern void dispatch(void) {
     funcptr_t *oldHandler;        // used in SYSCALL_SIG_HANDLER
     int valid_pid;                // used in SYSCALL_WAIT
     void *old_sp;                 // used in SYSCALL_SIGRETURN
-    int kill_result;    
+    int kill_result;
+    int device_no;                // used in SYSCALL_OPEN
 
     // Grab the first process to service
     pcb *process = dequeue_from_ready();
@@ -295,6 +296,13 @@ extern void dispatch(void) {
             case SYSCALL_GET_CPU_TIMES:
                 proc_stats = (process_statuses *)(process->eip_ptr + 24);
                 process->ret_value = get_cpu_times(proc_stats);
+                enqueue_in_ready(process);
+                process = dequeue_from_ready();
+                break;
+
+            case SYSCALL_OPEN:
+                device_no = (int) (process->eip_ptr + 24);
+                process->ret_value = di_open(process, device_no);
                 enqueue_in_ready(process);
                 process = dequeue_from_ready();
                 break;

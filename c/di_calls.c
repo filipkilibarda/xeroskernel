@@ -4,49 +4,117 @@
  * Implements various device independent kernel functions for handling system
  * calls interacting with device.
  *
- * TODO more docs
+ * Public functions below are all called from the dispatcher.
  */
+
+#include <xeroskernel.h>
+
+
+static int  get_free_fd(fdt_entry_t fdt[]);
+static int  is_free(fdt_entry_t fdt_entry);
+static void close_fd(fdt_entry_t *fdt_entry);
+static device_t *get_device(int device_no);
 
 
 /**
- * Guessing this will be called from dispatcher. Probably return -1 on
- * failure, e.g., if device number is invalid. TODO verify
+ * Return opened file descriptor on success.
+ * Return -1 on failure, e.g., if device number is invalid.
  */
-int di_open(int device_no) {
-    return 0; // TODO
-}
+int di_open(pcb *process, int device_no) {
+    int fd = get_free_fd(process->fdt);
+    if (fd == -1)
+        return -1;
 
+    device_t *device = get_device(device_no);
+    if (!device)
+        return -1;
 
-int di_generic(int fd, )
+    if (!device->open())
+        return -1;
 
+    process->fdt[fd].device = device;
 
-/**
- * TODO
- */
-int di_close(int fd) {
-    return 0; // TODO
-}
-
-
-/**
- * TODO
- */
-int di_read(int fd) {
-    return 0; // TODO
-}
-
-
-/**
- * TODO
- */
-int di_write(int fd) {
-    return 0; // TODO
+    return fd;
 }
 
 
 /**
  * TODO
  */
-int di_ioctl(int fd) {
+int di_close(pcb *process, int fd) {
     return 0; // TODO
+}
+
+
+/**
+ * TODO
+ */
+int di_read(pcb *process, int fd) {
+    return 0; // TODO
+}
+
+
+/**
+ * TODO
+ */
+int di_write(pcb *process, int fd) {
+    return 0; // TODO
+}
+
+
+/**
+ * TODO
+ */
+int di_ioctl(pcb *process, int fd) {
+    return 0; // TODO
+}
+
+
+/* =========================================================================
+ *                              Helpers
+ * ========================================================================= */
+
+
+/**
+ * Close the given file descriptor table entry.
+ */
+static void close_fd(fdt_entry_t *fdt_entry) {
+    fdt_entry->device = NULL;
+}
+
+
+/**
+ * Return 1 if file descriptor entry is closed (free for use)
+ */
+static int is_free(fdt_entry_t fdt_entry) {
+    return fdt_entry.device == NULL;
+}
+
+
+/**
+ * Return any available file descriptor from the given file descriptor
+ * table.
+ *
+ * Return -1 if nothing is free.
+ *
+ * TODO: Could maintain a queue of closed fds for faster lookup.. but.. whatever
+ */
+static int get_free_fd(fdt_entry_t fdt[]) {
+    for (int i = 0; i < MAX_OPEN_FILES; i++) {
+        if (is_free(fdt[i]))
+            return i;
+    }
+    return -1;
+}
+
+
+/**
+ * Given a device number, return the corresponding entry in the device table.
+ *
+ * Return NULL if invalid device number.
+ */
+static device_t *get_device(int device_no) {
+    if (device_no < 0 || device_no >= MAX_DEVICES)
+        return NULL;
+    return &device_table[device_no];
 }
