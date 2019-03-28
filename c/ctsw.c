@@ -83,22 +83,24 @@ int contextswitch(pcb *process) {
         : [keyboard] "i" (KEYBOARD_INT), [timer] "i" (TIMER_INT)
         : "%eax", "%ecx");
 
-        // Check if an interrupt occurred
-        if (hardware_interrupt_num) {
-            // Want return value to be the same as original eax
-            process->ret_value = req_id;
-            req_id = hardware_interrupt_num;
-        }
+    // Check if an interrupt occurred
+    if (hardware_interrupt_num) {
+        // Want return value to be the same as original eax
+        process->ret_value = req_id;
+        req_id = hardware_interrupt_num;
+    }
 
-        process->stack_ptr = ESP;
-        process->eip_ptr = eip_ptr;
-        return req_id;
+    process->stack_ptr = ESP;
+    process->eip_ptr = eip_ptr;
+    return req_id;
 }
 
-// Set up IDT entry points and timer quantum
-extern void contextinit() {
-    set_evec(SYSCALL_IDT_INDEX, (unsigned long) _syscall_entry);
-    set_evec(32, (unsigned long) _timer_entry);
-//    set_evec(KEYBOARD_IDT_INDEX, (unsigned long) _keyboard_entry);
+/**
+ * Set up IDT entry points and timer quantum
+ */
+void contextinit() {
+    set_evec(SYSCALL_IDT_INDEX,  (unsigned long) _syscall_entry);
+    set_evec(TIMER_IDT_INDEX,    (unsigned long) _timer_entry);
+    set_evec(KEYBOARD_IDT_INDEX, (unsigned long) _keyboard_entry);
     initPIT(100);
 }
