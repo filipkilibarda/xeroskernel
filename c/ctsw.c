@@ -43,30 +43,34 @@ int contextswitch(pcb *process) {
     ESP = process->stack_ptr;
     retval = process->ret_value;
     __asm __volatile(
-            "pushf;"
+            "pushf;"                  // Save kernel context
             "pusha;"
             "movl %%esp, kern_stack;"
-            "movl ESP, %%esp;"
+            "movl ESP, %%esp;"        // Load process context
             "popa;"
             "movl retval, %%eax;"
-            "iret;"
-        "_keyboard_entry:"
+            "iret;"                   // Jump into process
+
+        "_keyboard_entry:"            // Keyboard interrupt entry
             "cli;"
             "movl %%esp, eip_ptr;"
             "pusha;"
             "movl %[keyboard], %%ecx;"
             "jmp _common_entry;"
-        "_timer_entry:"
+
+        "_timer_entry:"               // Timer interrupt entry
             "cli;"
             "movl %%esp, eip_ptr;"
             "pusha;"
             "movl %[timer], %%ecx;"
             "jmp _common_entry;"
-        "_syscall_entry:"
+
+        "_syscall_entry:"             // All system calls enter here
             "cli;"
             "movl %%esp, eip_ptr;"
             "pusha;"
             "movl $0, %%ecx;"
+
         "_common_entry:"
             "movl %%ecx, hardware_interrupt_num;"
             "movl %%esp, ESP;"
