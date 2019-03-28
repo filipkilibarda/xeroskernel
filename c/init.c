@@ -60,7 +60,7 @@ void initproc( void )				/* The beginning */
 
     create_idle_process();
     // Test IPC functionality
-    //create(test_ipc, DEFAULT_STACK_SIZE);
+    create(test_ipc, DEFAULT_STACK_SIZE);
     kprintf("\n");
     kprintf("==========================\n");
     kprintf("Extended producer-consumer\n");

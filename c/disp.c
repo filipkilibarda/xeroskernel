@@ -158,21 +158,14 @@ extern void dispatch(void) {
                 else if (signalNumber < 0 || signalNumber > 31)
                 process->ret_value = -583;
                 
-                // TODO: This will be done by signal trampoline
-                // this is here for now so that everything doesn't break
-                else if (signalNumber == 9) {
-                    kill(pid); 
-                    process->ret_value = 0;
-                    // Check if process killed itself,
-                    // if not, enqueue process back to ready
-                    if (process->state != PROC_STOPPED) {
-                        enqueue_in_ready(process);
-                    }
-
-                    process = dequeue_from_ready();
-                } else {
+                else {
+                    kprintf("DISPATCHER: Signaling\n");
                     signal(pid, signalNumber);
+                    kprintf("DISPATCHER: Signal stack set up\n");
                 }
+
+                enqueue_in_ready(process);
+                process = dequeue_from_ready();
 
                 break;
 
