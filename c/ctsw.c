@@ -91,6 +91,6 @@ int contextswitch(pcb *process) {
 extern void contextinit() {
     set_evec(SYSCALL_IDT_INDEX, (unsigned long) _syscall_entry);
     set_evec(32, (unsigned long) _timer_entry);
-    set_evec(KEYBOARD_IDT_INDEX, (unsigned long) _keyboard_entry);
+//    set_evec(KEYBOARD_IDT_INDEX, (unsigned long) _keyboard_entry);
     initPIT(100);
 }
