@@ -50,6 +50,8 @@ typedef unsigned int size_t; /* Something that can hold the value of
 #define SYSCALL_READ           19
 #define SYSCALL_IOCTL          20
 
+#define SYSCALL_IDT_INDEX 60 // Used for generic syscall interface
+
 #define END_OF_MEMORY 0x400000
 #define DEFAULT_STACK_SIZE 4096
 #define DEFAULT_PRIORITY 3
