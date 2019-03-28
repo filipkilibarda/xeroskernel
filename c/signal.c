@@ -112,6 +112,7 @@ void init_signal_context(pcb *process_to_signal) {
         __asm __volatile( " \
             movl %%esp, kern_stack \n\
             movl proc_stack, %%esp \n\
+            push proc_stack \n\
             push handler \n\
             push GP_REGISTER \n\
             push EFLAGS \n\
