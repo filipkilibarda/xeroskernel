@@ -38,19 +38,25 @@ typedef unsigned int size_t; /* Something that can hold the value of
 #define SYSCALL_SET_PRIO       7
 #define SYSCALL_SEND           8
 #define SYSCALL_RECV           9
-#define TIMER_INT              10
-#define SYSCALL_SLEEP          11
-#define SYSCALL_GET_CPU_TIMES  12
-#define SYSCALL_SIG_HANDLER    13
-#define SYSCALL_SIG_RETURN     14
-#define SYSCALL_WAIT           15
-#define SYSCALL_OPEN           16
-#define SYSCALL_CLOSE          17
-#define SYSCALL_WRITE          18
-#define SYSCALL_READ           19
-#define SYSCALL_IOCTL          20
+#define SYSCALL_SLEEP          10
+#define SYSCALL_GET_CPU_TIMES  11
+#define SYSCALL_SIG_HANDLER    12
+#define SYSCALL_SIG_RETURN     13
+#define SYSCALL_WAIT           14
+#define SYSCALL_OPEN           15
+#define SYSCALL_CLOSE          16
+#define SYSCALL_WRITE          17
+#define SYSCALL_READ           18
+#define SYSCALL_IOCTL          19
 
-#define SYSCALL_IDT_INDEX 60 // Used for generic syscall interface
+#define TIMER_INT              100
+#define KEYBOARD_INT           101
+
+#define SYSCALL_IDT_INDEX  60 // Used for generic syscall interface
+#define TIMER_IDT_INDEX    32
+// TODO: How do we choose which index in the IDT to put the keyboard ISR?
+//  Guessing it'll be 33, but what's the reason for that?
+#define KEYBOARD_IDT_INDEX 33 // Index into the interrupt descriptor table
 
 #define END_OF_MEMORY 0x400000
 #define DEFAULT_STACK_SIZE 4096

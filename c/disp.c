@@ -314,6 +314,12 @@ extern void dispatch(void) {
                 process = dequeue_from_ready();
                 break;
 
+            case KEYBOARD_INT:
+                kprintf("Keyboard interrupt!\n");
+                enqueue_in_ready(process);
+                process = dequeue_from_ready();
+                break;
+
             default: 
                 LOG("Invalid request code %d", request);
                 break;

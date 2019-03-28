@@ -30,7 +30,7 @@ static void *ESP;
 static void *eip_ptr;
 static unsigned long req_id;
 static unsigned long retval;
-static unsigned long interrupt_type;
+static unsigned long hardware_interrupt_num;
 
 /**
  * Top half handles context switch into process,
@@ -43,28 +43,36 @@ int contextswitch(pcb *process) {
     ESP = process->stack_ptr;
     retval = process->ret_value;
     __asm __volatile(
-            "pushf;"
+            "pushf;"                  // Save kernel context
             "pusha;"
             "movl %%esp, kern_stack;"
-            "movl ESP, %%esp;"
+            "movl ESP, %%esp;"        // Load process context
             "popa;"
             "movl retval, %%eax;"
-            "iret;"
-        "_keyboard_entry:"
-            "cli;"
-        "_timer_entry:"
+            "iret;"                   // Jump into process
+
+        "_keyboard_entry:"            // Keyboard interrupt entry
             "cli;"
             "movl %%esp, eip_ptr;"
             "pusha;"
-            "movl $10, %%ecx;"
+            "movl %[keyboard], %%ecx;"
             "jmp _common_entry;"
-        "_syscall_entry:"
+
+        "_timer_entry:"               // Timer interrupt entry
+            "cli;"
+            "movl %%esp, eip_ptr;"
+            "pusha;"
+            "movl %[timer], %%ecx;"
+            "jmp _common_entry;"
+
+        "_syscall_entry:"             // All system calls enter here
             "cli;"
             "movl %%esp, eip_ptr;"
             "pusha;"
             "movl $0, %%ecx;"
+
         "_common_entry:"
-            "movl %%ecx, interrupt_type;"
+            "movl %%ecx, hardware_interrupt_num;"
             "movl %%esp, ESP;"
             "movl %%eax, req_id;"
             "movl kern_stack, %%esp;"
@@ -72,25 +80,27 @@ int contextswitch(pcb *process) {
             "movl req_id, %%eax;"
             "popf;"
         :
-        :
+        : [keyboard] "i" (KEYBOARD_INT), [timer] "i" (TIMER_INT)
         : "%eax", "%ecx");
 
-        // Check if an interrupt occurred
-        if (interrupt_type) {
-            // Want return value to be the same as original eax
-            process->ret_value = req_id;
-            req_id = interrupt_type;
-        }
+    // Check if an interrupt occurred
+    if (hardware_interrupt_num) {
+        // Want return value to be the same as original eax
+        process->ret_value = req_id;
+        req_id = hardware_interrupt_num;
+    }
 
-        process->stack_ptr = ESP;
-        process->eip_ptr = eip_ptr;
-        return req_id;
+    process->stack_ptr = ESP;
+    process->eip_ptr = eip_ptr;
+    return req_id;
 }
 
-// Set up IDT entry points and timer quantum
-extern void contextinit() {
-    set_evec(SYSCALL_IDT_INDEX, (unsigned long) _syscall_entry);
-    set_evec(32, (unsigned long) _timer_entry);
-//    set_evec(KEYBOARD_IDT_INDEX, (unsigned long) _keyboard_entry);
+/**
+ * Set up IDT entry points and timer quantum
+ */
+void contextinit() {
+    set_evec(SYSCALL_IDT_INDEX,  (unsigned long) _syscall_entry);
+    set_evec(TIMER_IDT_INDEX,    (unsigned long) _timer_entry);
+    set_evec(KEYBOARD_IDT_INDEX, (unsigned long) _keyboard_entry);
     initPIT(100);
 }
