@@ -4,6 +4,7 @@
 
 #include <xeroskernel.h>
 #include <xeroslib.h>
+#include <i386.h>
 #include <test.h>
 
 #pragma GCC diagnostic push 
@@ -54,6 +55,13 @@ unsigned long sig_masks[32] =
 int signal(PID_t pid, int signalNumber) {
 
     pcb *process_to_signal = get_pcb(pid);
+
+    // Check if the process we want to signal is blocked
+    if (process_to_signal->state == PROC_BLOCKED) {
+        process_to_signal->state = PROC_READY;
+        // TODO: There may be conditions where return value should be different
+        process_to_signal->ret_value = -666;
+    }
     // Get the handler
     handler = process_to_signal->sig_handlers[signalNumber];
 
@@ -95,8 +103,11 @@ int signal(PID_t pid, int signalNumber) {
  * function after calling syssigreturn. 
  **/ 
 extern void sigtramp(void (*handler)(void *), void *context) {
-    kprintf("SIGTRAMP: Calling handler\n");
-    handler(context);
+    kprintf("Sigtramp handler is %x\n", handler);
+    if (handler != NULL) {
+        kprintf("SIGTRAMP: Calling handler\n");
+        handler(context);
+    }
     // Rewind stack to point to old context, and 
     // restore previous return value.
     kprintf("SIGTRAMP: Calling syssigreturn\n");
@@ -173,6 +184,7 @@ unsigned long get_sig_mask(int signalNumber) {
 #pragma GCC diagnostic ignored "-Wunused-function"
 
 static void _test_signal(void);
+void test_handler(void *);
 
 /**
  * Wrapper function for test routine. 
@@ -188,17 +200,99 @@ void test_process(void) {
     for(;;);
 }
 
+void test_process_prints(void) {
+    for (int i = 0; i < 10; i++) {
+        sysputs("Testing 1-2-3\n");
+    }
+}
+
+void register_handler_loop(void) {
+    funcptr_t newHandler = &test_handler;
+    funcptr_t *oldHandler = (funcptr_t *) kmalloc(16);
+    int result = syssighandler(2, newHandler, oldHandler);
+    ASSERT_INT_EQ(0, result);
+    syssleep(10000);
+    kfree(oldHandler);
+}
+
+void test_handler(void *param) {
+    kprintf("Running the specified handler!\n");
+}
+
 /**
  * Test the signal functionality
  */
 void _test_signal(void) {
     kprintf("Starting signal tests\n");
+
+    // A basic test of syssigkill() functionality 
     // TEST 1: Ensure that one process can signal another 
-    // In this case, p2 kills p1, and then the test process
-    // kills p2. 
-    //p1 = syscreate(process_to_kill, DEFAULT_STACK_SIZE);
     PID_t p1 = syscreate(test_process, DEFAULT_STACK_SIZE);
     syssleep(200);
     syskill(p1, 31);
+    ASSERT_INT_EQ(PROC_STOPPED, get_pcb(p1)->state);
+    ASSERT_INT_EQ(30, get_num_stopped_processes());
+
+    // ======================================================
+    // BEGIN SYSSIGHANDLER TESTS
+    // ======================================================
+    funcptr_t newHandler; 
+    funcptr_t *oldHandler;
+
+    // TEST 2: attempt to register handler for invalid signals
+    newHandler = (funcptr_t) kmalloc(16);
+    oldHandler = (funcptr_t *) kmalloc(16);
+    int result = syssighandler(-3, newHandler, oldHandler);
+    ASSERT_INT_EQ(result, -1);
+    result = syssighandler(32, newHandler, oldHandler);
+    ASSERT_INT_EQ(result, -1);
+
+    // TEST 3: attempt to register handler for signal 31
+    result = syssighandler(31, newHandler, oldHandler);
+    ASSERT_INT_EQ(-1, result);
+
+    // TEST 4: attempt to register newHandler at invalid addresses
+    kfree(newHandler);
+    newHandler = (funcptr_t) (HOLESTART + 10);
+    result = syssighandler(10, newHandler, oldHandler);
+    ASSERT_INT_EQ(-2, result);
+    newHandler = (funcptr_t) (END_OF_MEMORY + 10);
+    result = syssighandler(4, newHandler, oldHandler);
+    ASSERT_INT_EQ(-2, result);
+
+    // TEST 5: attempt to pass in oldHandler pointer at invalid addresses
+    newHandler = kmalloc(16);
+    kfree(oldHandler);
+    oldHandler = (funcptr_t *) (HOLESTART + 10);
+    result = syssighandler(5, newHandler, oldHandler);
+    ASSERT_INT_EQ(-3, result);
+    oldHandler = (funcptr_t *) (END_OF_MEMORY + 10);
+    result = syssighandler(6, newHandler, oldHandler);
+    ASSERT_INT_EQ(-3, result);
+
+    // TEST 6: successfully install a 'handler' 
+    oldHandler = kmalloc(16);
+    result = syssighandler(4, newHandler, oldHandler);
+    ASSERT_INT_EQ(0, result);
+    // Since the signal table was empty, there shouldn't be anything here
+    ASSERT(*oldHandler == NULL, "oldHandler should be NULL\n");
+
+    // TEST 7: attempt to signal default behavior ('ignore' signal)
+    /*p1 = syscreate(test_process_prints, DEFAULT_STACK_SIZE);
+    // We never defined a signal handler so it should just ignore this.
+    // We will see it print 10 times. 
+    sysputs("Calling syskill\n");
+    syskill(p1, 2);
+    */
+    // TEST 8: attempt to signal for a registered handler, ensure handler runs
+    LOG("Handler is %x\n", &test_handler);
+    PID_t p2 = syscreate(register_handler_loop, DEFAULT_STACK_SIZE);
+    LOG("PID is %d\n", p2);
+    syssleep(1000);
+    LOG("Signaling p2 with signal 2\n", NULL);
+    // This should cause the registered handler to print that it's running
+    syskill(p2, 2);
+    
+    
 
 }

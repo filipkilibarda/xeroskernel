@@ -111,6 +111,7 @@ typedef struct mem_header_s mem_header;
 
 // NEW FOR A2
 typedef unsigned int PID_t;
+typedef void (*funcptr_t)(void *);
 
 struct pcb_s;
 

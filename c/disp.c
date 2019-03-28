@@ -231,13 +231,11 @@ extern void dispatch(void) {
                 if (signalNumber < 0 || signalNumber > 30) process->ret_value = -1;
 
                 // Check that newHandler is in valid memory space
-                else if ((int*) newHandler < &end
-                || ((int) newHandler > HOLESTART && (int) newHandler < HOLEEND)
+                else if (((int) newHandler > HOLESTART && (int) newHandler < HOLEEND)
                 || (int) newHandler > END_OF_MEMORY) process->ret_value = -2;
 
                 // Check that oldHandler is in valid memory space
-                else if ((int*) oldHandler < &end
-                || ((int) oldHandler > HOLESTART && (int) oldHandler < HOLEEND)
+                else if (((int) oldHandler > HOLESTART && (int) oldHandler < HOLEEND)
                 || (int) oldHandler > END_OF_MEMORY) process->ret_value = -3;
 
                 else {

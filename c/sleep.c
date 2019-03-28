@@ -82,6 +82,10 @@ void tick() {
     pcb *cur = sleep_delta_list;
     while (cur != NULL) {
         cur->sleep_time -= TICK_TIME;
+        // Always update return value with remaining
+        // sleep time; if process is woken early, 
+        // it will then return with the time remaining
+        cur->ret_value = cur->sleep_time;
         cur = cur->next;
     }
 
