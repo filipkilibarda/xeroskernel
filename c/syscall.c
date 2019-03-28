@@ -38,14 +38,12 @@ extern int syscall(int call, ...) {
     req_id = call;
     // Save call type into eax and
     // Execute interrupt to switch into kernel
-    // TODO: Change the hardcoded 0x3c to use the macro defined in xeroskernel
     __asm __volatile(
-        "movl req_id, %%eax;"
-        "int $0x3c;"
-        "movl %%eax, return_value;"
-        :::);
-    
-    
+        "movl req_id, %%eax;"        // Specify which syscall
+        "int %0;"                    // Trap into kernel
+        "movl %%eax, return_value;"  // Copy syscall ret val into global var
+        :: "i" (SYSCALL_IDT_INDEX));
+
     return return_value;
 }
 
