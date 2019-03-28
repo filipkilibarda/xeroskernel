@@ -242,6 +242,7 @@ void test_ipc(void) {
  * Note: This needs to run inside a process, not the kernel.
  **/
 void _test_ipc(void) {
+    kprintf("Starting test IPC\n");
     // Used for memory leak test later on
     int initial_free_memory = total_free_memory();
     int num_stopped_processes = get_num_stopped_processes();
@@ -316,21 +317,23 @@ void _test_ipc(void) {
     receiver_pid = create(dying_process, DEFAULT_STACK_SIZE);
     ASSERT_INT_EQ(-1, syssend(receiver_pid, MSG));
     // Expect -1 from syskill because process should already be dead.
-    ASSERT_INT_EQ(-1, syskill(receiver_pid, 31));
+    ASSERT_INT_EQ(-514, syskill(receiver_pid, 31));
 
     // Receive from a process that dies while we're blocked
     // ====================================================
     receiver_pid = create(dying_process, DEFAULT_STACK_SIZE);
     ASSERT_INT_EQ(-1, sysrecv(&receiver_pid, &msg));
     // Expect -1 from syskill because process should already be dead.
-    ASSERT_INT_EQ(-1, syskill(receiver_pid, 31));
+    ASSERT_INT_EQ(-514, syskill(receiver_pid, 31));
 
     // Ensure killed receive any proc gets removed from receive any queue
     // ==================================================================
     receiver_pid = create(receive_any, DEFAULT_STACK_SIZE);
     sysyield(); // Yield so other process can start
     ASSERT(!queue_is_empty(&receive_any_queue), "Queue should have one proc.");
-    KILL(receiver_pid, 31);
+    KILL(receiver_pid, 31); 
+    // TODO: Issue here is that kill doesn't execute synchronously anymore, so
+    // we need some way to ensure sigtramp happens before this assertion. 
     ASSERT(queue_is_empty(&receive_any_queue), "Queue should be empty.");
     ASSERT_INT_EQ(-2, syssend(receiver_pid, MSG));
 

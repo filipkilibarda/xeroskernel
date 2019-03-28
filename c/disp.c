@@ -100,6 +100,7 @@ extern void dispatch(void) {
     funcptr_t *oldHandler;        // used in SYSCALL_SIG_HANDLER
     int valid_pid;                // used in SYSCALL_WAIT
     void *old_sp;                 // used in SYSCALL_SIGRETURN
+    int kill_result;    
 
     // Grab the first process to service
     pcb *process = dequeue_from_ready();
@@ -124,8 +125,13 @@ extern void dispatch(void) {
                 break;
 
             case SYSCALL_STOP:
-                if (kill(process->pid) != 0) {
+                kill_result = kill(process->pid);
+                if (kill_result != 0) {
                     FAIL("Should always be able to kill this process.");
+                }
+
+                if (process->state != PROC_STOPPED) {
+                    enqueue_in_ready(process);
                 }
                 process = dequeue_from_ready();
                 break;
@@ -152,7 +158,8 @@ extern void dispatch(void) {
                 
                 // Make sure pid to send to exists
                 pcb *process_pcb = get_pcb(pid);
-                if (!process_pcb) process->ret_value = -514;
+                if (!process_pcb || process_pcb->state == PROC_STOPPED)
+                process->ret_value = -514;
 
                 // Determine if signalNumber is valid
                 else if (signalNumber < 0 || signalNumber > 31)
@@ -162,6 +169,7 @@ extern void dispatch(void) {
                     kprintf("DISPATCHER: Signaling\n");
                     signal(pid, signalNumber);
                     kprintf("DISPATCHER: Signal stack set up\n");
+                    process->ret_value = 0; // Considered success
                 }
 
                 enqueue_in_ready(process);
@@ -245,14 +253,15 @@ extern void dispatch(void) {
                 break;
 
             case SYSCALL_SIG_RETURN:
-                // TODO: Do we need to do argument checking of old_sp?
-                // I don't think so because it will only get called from trampoline
                 old_sp = *((void **) (process->eip_ptr + 24));
                 
                 // Determine which signal was just sent and reset its bit in mask
                 signalNumber = *((int *) (process->eip_ptr - 4));
                 unsigned long mask = get_sig_mask(signalNumber);
                 process->sig_mask = process->sig_mask ^ mask;
+
+                // Reset current signal priority in PCB
+                process->sig_prio = -1;
 
                 // Update stack pointer
                 process->stack_ptr = old_sp;
@@ -264,7 +273,7 @@ extern void dispatch(void) {
             case SYSCALL_WAIT:
                 pid = *((PID_t *) (process->eip_ptr + 24));
                 valid_pid = is_valid_pid(pid);
-                if (valid_pid == -1) {
+                if (valid_pid == -1 || pid == 0) {
                     process->ret_value = -1;
                     enqueue_in_ready(process);
                 }
@@ -276,9 +285,8 @@ extern void dispatch(void) {
                 else {
                     // Block process
                     process->state = PROC_BLOCKED;
-                    // TODO: I assume we need to add this process to some 
-                    // data structure belonging to the process we're waiting
-                    // for (queue of waiters?)
+                    process->ret_value = 0;
+                    // Add to queue of waiters
                     enqueue_in_waiters(process, get_pcb(pid));
                 }
 
@@ -346,6 +354,7 @@ int kill(PID_t pid) {
     enqueue_in_stopped(process);
     pull_from_queue(ready_queues[process->priority], process);
     notify_dependent_processes(process);
+    LOG("Removing from IPC Queues", NULL);
     remove_from_ipc_queues(process);
     return 0;
 }

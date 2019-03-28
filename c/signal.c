@@ -4,6 +4,7 @@
 
 #include <xeroskernel.h>
 #include <xeroslib.h>
+#include <test.h>
 
 #pragma GCC diagnostic push 
 #pragma GCC diagnostic ignored "-Wunused-variable"
@@ -162,4 +163,42 @@ int get_highest_signal_number(unsigned long sig_mask) {
  */
 unsigned long get_sig_mask(int signalNumber) {
     return sig_masks[signalNumber];
+}
+
+// =============================================================================
+// Testing
+// =============================================================================
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-function"
+
+static void _test_signal(void);
+
+/**
+ * Wrapper function for test routine. 
+ */
+void test_signal(void) {
+    RUN_TEST(_test_signal);
+}
+
+
+void test_process(void) {
+    kprintf("My PID is: %d\n", sysgetpid());
+    // Does nothing.
+    for(;;);
+}
+
+/**
+ * Test the signal functionality
+ */
+void _test_signal(void) {
+    kprintf("Starting signal tests\n");
+    // TEST 1: Ensure that one process can signal another 
+    // In this case, p2 kills p1, and then the test process
+    // kills p2. 
+    //p1 = syscreate(process_to_kill, DEFAULT_STACK_SIZE);
+    PID_t p1 = syscreate(test_process, DEFAULT_STACK_SIZE);
+    syssleep(200);
+    syskill(p1, 31);
+
 }

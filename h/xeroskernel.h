@@ -269,6 +269,7 @@ void test_dispatcher(void);
 void test_ipc(void);
 void test_sleep(void);
 void test_time_slice(void);
+void test_signal(void);
 
 extern pcb pcb_table[];       // The table of process ctrl blocks
 extern pcb *idle_process;     // Pointer to the idle process

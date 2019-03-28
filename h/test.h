@@ -26,7 +26,7 @@
 #include <xeroslib.h>
 
 // This turns on the tests
-//#define TESTING
+#define TESTING
 
 /**
  * Stop the CPU by disabling interrupts and halting the CPU so whatever is
