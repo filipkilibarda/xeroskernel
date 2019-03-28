@@ -58,12 +58,12 @@ void initproc(void) {
 
     create_idle_process();
     // Test IPC functionality
-    create(test_ipc, DEFAULT_STACK_SIZE);
-//    kprintf("\n");
-//    kprintf("==========================\n");
-//    kprintf("Extended producer-consumer\n");
-//    kprintf("==========================\n");
-//    create(root, DEFAULT_STACK_SIZE);
+//    create(test_ipc, DEFAULT_STACK_SIZE);
+    kprintf("\n");
+    kprintf("==========================\n");
+    kprintf("Extended producer-consumer\n");
+    kprintf("==========================\n");
+    create(root, DEFAULT_STACK_SIZE);
 
     // Call dispatcher to start running
     dispatch();
