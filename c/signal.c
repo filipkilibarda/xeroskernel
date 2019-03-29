@@ -226,6 +226,11 @@ void send_signal_int(void) {
     ASSERT_INT_EQ(-666, result);
 }
 
+void kill_process(void) {
+    syssleep(2000);
+    syskill(proc, 31);
+}
+
 /**
  * Test the signal functionality
  */
@@ -306,4 +311,18 @@ void _test_signal(void) {
     PID_t p3 = syscreate(send_signal_int, DEFAULT_STACK_SIZE);
     syskill(p3, 4);
     
+    // TEST 10: Illegal syskill signal
+    result = syskill(proc, 50);
+    ASSERT_INT_EQ(-583, result);
+
+    // TEST 11: Illegal syskill PID
+    result = syskill(1000, 3);
+    ASSERT_INT_EQ(-514, result);
+
+    // TEST 12: syswait on a process, then kill that process it's 
+    // waiting on. 
+    //PID_t killer = syscreate(kill_process, DEFAULT_STACK_SIZE);
+    //syswait(proc);
+    //LOG("RETURNED TO TEST", NULL);
+
 }

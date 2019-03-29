@@ -141,6 +141,7 @@ struct pcb_s {
     pcb_queue receiver_queue; // pcbs wanting to recv from this.
     PID_t receiving_from_pid; // PID that this is blocked receiving from.
     PID_t sending_to_pid;     // PID that this is blocked sending to.
+    PID_t waiting_for;
     void *sig_handlers[32];
     unsigned long sig_mask;
     int sig_prio;             // The current highest priority signal for this process 
