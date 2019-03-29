@@ -111,6 +111,24 @@ void tick() {
 
 }
 
+/**
+ * Removes the specified pcb from the sleep queue
+ */
+void pull_from_sleep_list(pcb *process) {
+    pcb *cur = sleep_delta_list;
+    pcb *prev = NULL;
+    while (cur != NULL) {
+        if (cur == process) {
+            if (prev == NULL) {
+                sleep_delta_list = cur->next;
+            } else {
+                prev->next = cur->next;
+            }
+        }
+        prev = cur;
+        cur = cur->next;
+    }
+}
 
 // For debugging 
 void print_sleep_list(void) {

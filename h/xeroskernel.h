@@ -156,6 +156,7 @@ struct pcb_s {
     pcb_queue receiver_queue; // pcbs wanting to recv from this.
     PID_t receiving_from_pid; // PID that this is blocked receiving from.
     PID_t sending_to_pid;     // PID that this is blocked sending to.
+    PID_t waiting_for;
     void *sig_handlers[32];   // TODO: Un-hardcode this, use #define var
     unsigned long sig_mask;
     int sig_prio;             // Current highest priority signal
@@ -299,6 +300,7 @@ int   is_blocked(pcb *process);
 int  sleep(pcb *process, unsigned int milliseconds);
 void tick(void);
 void print_sleep_list(void);
+void pull_from_sleep_list(pcb *process);
 
 
 // signal.c

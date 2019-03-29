@@ -102,6 +102,7 @@ extern void dispatch(void) {
     int valid_pid;                // used in SYSCALL_WAIT
     void *old_sp;                 // used in SYSCALL_SIGRETURN
     int kill_result;
+    int old_ret_value;
     int bytes_read;
     int fd;
     unsigned int device_no;
@@ -167,6 +168,22 @@ extern void dispatch(void) {
                 pcb *process_pcb = get_pcb(pid);
                 if (!process_pcb || process_pcb->state == PROC_STOPPED)
                 process->ret_value = -514;
+
+                // If process to signal is blocked, set its return value to
+                // -666
+                else if (process_pcb->state == PROC_BLOCKED) {
+                    process_pcb->ret_value = -666;
+                    process_pcb->state = PROC_READY;
+                    // TODO: how do we determine which process it was blocked on?
+                    // Since we need to pull it from any queues it might have been on
+                    // I think I can just repurpose this function!
+                    process_pcb->receiving_from_pid = NULL;
+                    process_pcb->sending_to_pid = NULL;
+                    notify_dependent_processes(process_pcb);
+                    remove_from_ipc_queues(process_pcb);
+                    pull_from_sleep_list(process_pcb);
+                    enqueue_in_ready(process_pcb);
+                }
 
                 // Determine if signalNumber is valid
                 else if (signalNumber < 0 || signalNumber > 31)
@@ -265,6 +282,10 @@ extern void dispatch(void) {
                 unsigned long mask = get_sig_mask(signalNumber);
                 process->sig_mask = process->sig_mask ^ mask;
 
+                // Restore old return value
+                old_ret_value = *((int *) (old_sp + 36));
+                process->ret_value = old_ret_value;
+
                 // Reset current signal priority in PCB
                 process->sig_prio = -1;
 
@@ -292,6 +313,7 @@ extern void dispatch(void) {
                     process->state = PROC_BLOCKED;
                     process->ret_value = 0;
                     // Add to queue of waiters
+                    process->waiting_for = pid;
                     enqueue_in_waiters(process, get_pcb(pid));
                 }
 
@@ -397,6 +419,13 @@ int kill(PID_t pid) {
     LOG("Killing process PID: %d", process->pid);
     free_process_memory(process);
     enqueue_in_stopped(process);
+
+    // if(process->waiting_for != 0) {
+    //     LOG("Pulling from waiter queue\n", NULL);
+    //     //pull_from_queue(&(get_pcb(process->waiting_for)->waiter_queue), process);
+    //     //process->waiting_for = 0;
+    // }
+
     pull_from_queue(ready_queues[process->priority], process);
     notify_dependent_processes(process);
     LOG("Removing from IPC Queues", NULL);
@@ -536,10 +565,14 @@ void enqueue_in_ready(pcb *process) {
  */
 void enqueue_in_waiters(pcb *process, pcb *wait_for) {
     // TODO: can I just reuse enqueue function?
-    // (because it messes with the next field and that 
-    // might mess things up if a process is signaled while
-    // on another queue [i.e. senders, receivers])
+    // Judging by my TEST 12, the answer is a big NO
+    // (because it messes with the next field and that
+    // messes things up if a process is signaled while
+    // on another queue [i.e. senders, receivers, sleepers])
+    LOG("Enqueuing in waiters", NULL);
     enqueue(&wait_for->waiter_queue, process);
+    LOG("Enqueued in waiters", NULL);
+
 }
 
 
