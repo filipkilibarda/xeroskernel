@@ -252,7 +252,6 @@ void      print_queue(pcb_queue *queue);
 void      dump_queues(void);
 void      validate_stopped_queue(void);
 void      enqueue_in_waiters(pcb *process, pcb *wait_for);
-void *    get_arg(pcb *process, int byte_offset);
 
 
 // create.c

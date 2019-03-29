@@ -82,6 +82,13 @@ void reset_pcb_table(void) {
 
 
 /**
+ * Grab an argument off the process's stack that has a certain type and byte
+ * offset from the first argument.
+ */
+#define GET_ARG(type, offset) *((type *) (process->eip_ptr + 24 + offset))
+
+
+/**
  * Schedules processes and handles system calls from running processes.
  **/
 extern void dispatch(void) {
@@ -329,22 +336,21 @@ extern void dispatch(void) {
                 break;
 
             case SYSCALL_OPEN:
-                device_no = *((int *) get_arg(process, 0));
+                device_no = GET_ARG(int, 0);
                 process->ret_value = di_open(process, device_no);
                 enqueue_in_ready(process);
                 process = dequeue_from_ready();
                 break;
 
             case SYSCALL_CLOSE:
-                fd = *((int *) get_arg(process, 0));
+                fd = GET_ARG(int, 0);
                 // TODO
                 break;
 
             case SYSCALL_READ:
-                fd = *((int *) get_arg(process, 0));
-                buff = *((char **) get_arg(process, sizeof(int)));
-                bufflen = *((unsigned int *) get_arg(process, sizeof(int) +
-                                                              sizeof(char *)));
+                fd = GET_ARG(int, 0);
+                buff = GET_ARG(char *, sizeof(int));
+                bufflen = GET_ARG(unsigned int, sizeof(int) + sizeof(char *));
                 bytes_read = di_read(process, fd, buff, bufflen);
                 // TODO
                 break;
@@ -673,14 +679,6 @@ int is_valid_pid(PID_t pid) {
  **/
 pcb *get_ready_queue(int priority) {
     return ready_queues[priority]->front_of_line;
-}
-
-
-/**
- * Grab system call arguments off the process's stack.
- */
-void *get_arg(pcb *process, int byte_offset) {
-    return (process->eip_ptr + 24 + byte_offset);
 }
 
 
