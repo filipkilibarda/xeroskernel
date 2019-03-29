@@ -28,9 +28,10 @@ static char user_bufflen;
 static char kernel_buff[KEYBOARD_BUFFLEN];
 
 // Flag indicating whether the keyboard device is currently open.
+// TODO: Could probably get rid of this
 static int is_open;
 
-static void init_generic_keyboard(device_t device);
+static void init_generic_keyboard(device_t *device);
 static char get_char(void);
 
 
@@ -61,6 +62,7 @@ int keyboard_open(void) {
 int keyboard_close(void) {
     enable_irq(KEYBOARD_IRQ, 1);
     is_open = 0;
+    LOG("Keyboard closed!");
     return 1;
 }
 
@@ -112,7 +114,7 @@ int keyboard_ioctl(int command, ...) {
  * keyboard (the keyboard that doesn't echo).
  */
 void init_quiet_keyboard(device_t device_table[], int index) {
-    init_generic_keyboard(device_table[index]);
+    init_generic_keyboard(&device_table[index]);
 }
 
 
@@ -120,19 +122,19 @@ void init_quiet_keyboard(device_t device_table[], int index) {
  * Initialize the given device structure with attributes of the echo keyboard.
  */
 void init_echo_keyboard(device_t device_table[], int index) {
-    init_generic_keyboard(device_table[index]);
+    init_generic_keyboard(&device_table[index]);
 }
 
 
 /**
  * Initialize functionality that's shared between both types of keyboards.
  */
-static void init_generic_keyboard(device_t device) {
-    device.open  = keyboard_open;
-    device.close = keyboard_close;
-    device.write = keyboard_write;
-    device.read  = keyboard_read;
-    device.ioctl = keyboard_ioctl;
+static void init_generic_keyboard(device_t *device) {
+    device->open  = keyboard_open;
+    device->close = keyboard_close;
+    device->write = keyboard_write;
+    device->read  = keyboard_read;
+    device->ioctl = keyboard_ioctl;
 }
 
 
@@ -162,4 +164,18 @@ char read_char(void) {
     // TODO: Need to convert byte to appropriate character using translation
     //  lookup table like defined in scancodesToAscii.txt
     return inb(KEYBOARD_DATA_PORT);
+}
+
+
+/* ========================================================
+ *                        Tests
+ * ======================================================== */
+
+/**
+ * Run some tests for the keyboard.
+ */
+void _test_keyboard(void) {
+    // TODO: Multiple attempts to open keyboard should fail
+    // TODO: Attempt to open both keyboard devices should fail
+    // TODO: Multiple processes opening keyboard, only one should succeed
 }

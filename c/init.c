@@ -63,6 +63,7 @@ void initproc(void) {
     init_device_table();
 
     create_idle_process();
+    create(test_keyboard, DEFAULT_STACK_SIZE);
     // Test IPC functionality
     //create(test_ipc, DEFAULT_STACK_SIZE);
 //    create(test_signal, DEFAULT_STACK_SIZE);

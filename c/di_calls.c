@@ -8,10 +8,11 @@
  */
 
 #include <xeroskernel.h>
+#include <test.h>
 
 
 static int  get_free_fd(fdt_entry_t fdt[]);
-static int  is_free(fdt_entry_t fdt_entry);
+static int  is_free(fdt_entry_t *fdt_entry);
 static void close_fd(fdt_entry_t *fdt_entry);
 static device_t *get_device(int device_no);
 
@@ -34,6 +35,7 @@ int di_open(pcb *process, int device_no) {
 
     process->fdt[fd].device = device;
 
+    LOG("Opened device %d on fd %d", device_no, fd);
     return fd;
 }
 
@@ -86,8 +88,8 @@ static void close_fd(fdt_entry_t *fdt_entry) {
 /**
  * Return 1 if file descriptor entry is closed (free for use)
  */
-static int is_free(fdt_entry_t fdt_entry) {
-    return fdt_entry.device == NULL;
+static int is_free(fdt_entry_t *fdt_entry) {
+    return fdt_entry->device == NULL;
 }
 
 
@@ -101,7 +103,7 @@ static int is_free(fdt_entry_t fdt_entry) {
  */
 static int get_free_fd(fdt_entry_t fdt[]) {
     for (int i = 0; i < MAX_OPEN_FILES; i++) {
-        if (is_free(fdt[i]))
+        if (is_free(&fdt[i]))
             return i;
     }
     return -1;

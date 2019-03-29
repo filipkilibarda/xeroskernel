@@ -18,6 +18,7 @@ void free_process_memory(pcb *process);
 int count_pcbs(pcb_queue *queue);
 int get_cpu_times(process_statuses *proc_stats);
 int is_valid_pid(PID_t pid);
+static void *get_arg(pcb *process, int byte_offset);
 
 static char *proc_state_str[4] = {"READY", "RUNNING", "STOPPED", "BLOCKED"};
 
@@ -101,7 +102,8 @@ extern void dispatch(void) {
     int valid_pid;                // used in SYSCALL_WAIT
     void *old_sp;                 // used in SYSCALL_SIGRETURN
     int kill_result;
-    int device_no;                // used in SYSCALL_OPEN
+    int arg1;
+    int (*handler)(pcb *process, int num);
 
     // Grab the first process to service
     pcb *process = dequeue_from_ready();
@@ -301,8 +303,22 @@ extern void dispatch(void) {
                 break;
 
             case SYSCALL_OPEN:
-                device_no = (int) (process->eip_ptr + 24);
-                process->ret_value = di_open(process, device_no);
+                handler = di_open;
+                goto device_syscall;
+            case SYSCALL_CLOSE:
+                handler = di_close;
+                goto device_syscall;
+            case SYSCALL_READ:
+                handler = di_read;
+                goto device_syscall;
+            case SYSCALL_WRITE:
+                handler = di_write;
+                goto device_syscall;
+            case SYSCALL_IOCTL:
+                handler = di_ioctl;
+            device_syscall:
+                arg1 = *((int *) get_arg(process, 0));
+                process->ret_value = handler(process, arg1);
                 enqueue_in_ready(process);
                 process = dequeue_from_ready();
                 break;
@@ -321,7 +337,8 @@ extern void dispatch(void) {
                 break;
 
             case KEYBOARD_INT:
-                kprintf("Keyboard interrupt!\n");
+//                LOG("Keyboard interrupt!");
+                end_of_intr();
                 enqueue_in_ready(process);
                 process = dequeue_from_ready();
                 break;
@@ -609,9 +626,18 @@ pcb *get_ready_queue(int priority) {
     return ready_queues[priority]->front_of_line;
 }
 
-/*
+
+/**
+ * Grab system call arguments off the process's stack.
+ */
+static void *get_arg(pcb *process, int byte_offset) {
+    return (process->eip_ptr + 24 + byte_offset);
+}
+
+
+/**
  * Print the state of the PCB.
- **/
+ */
 void print_pcb_state(pcb *process) {
     kprintf("pid: %d, state: %s ", process->pid,
             proc_state_str[process->state]);

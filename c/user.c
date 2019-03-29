@@ -152,9 +152,11 @@ void test_invalid_process_code(void) {
  * Helper process for testing keyboard stuff.
  */
 void test_keyboard(void) {
+    LOG("Starting keyboard test");
     int fd = sysopen(0);
     if (fd < 0)
         FAIL("Failed to open the keyboard!");
+    for(;;);
 }
 
 
