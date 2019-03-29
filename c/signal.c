@@ -186,6 +186,8 @@ unsigned long get_sig_mask(int signalNumber) {
 static void _test_signal(void);
 void test_handler(void *);
 
+static PID_t proc;
+
 /**
  * Wrapper function for test routine. 
  */
@@ -195,7 +197,6 @@ void test_signal(void) {
 
 
 void test_process(void) {
-    kprintf("My PID is: %d\n", sysgetpid());
     // Does nothing.
     for(;;);
 }
@@ -211,12 +212,18 @@ void register_handler_loop(void) {
     funcptr_t *oldHandler = (funcptr_t *) kmalloc(16);
     int result = syssighandler(2, newHandler, oldHandler);
     ASSERT_INT_EQ(0, result);
-    syssleep(10000);
+    result = syssleep(10000); 
+    ASSERT_INT_EQ(-666, result);
     kfree(oldHandler);
 }
 
 void test_handler(void *param) {
     kprintf("Running the specified handler!\n");
+}
+
+void send_signal_int(void) {
+    int result = syssend(proc, 3);
+    ASSERT_INT_EQ(-666, result);
 }
 
 /**
@@ -278,21 +285,25 @@ void _test_signal(void) {
     ASSERT(*oldHandler == NULL, "oldHandler should be NULL\n");
 
     // TEST 7: attempt to signal default behavior ('ignore' signal)
-    /*p1 = syscreate(test_process_prints, DEFAULT_STACK_SIZE);
+    p1 = syscreate(test_process_prints, DEFAULT_STACK_SIZE);
     // We never defined a signal handler so it should just ignore this.
     // We will see it print 10 times. 
     sysputs("Calling syskill\n");
     syskill(p1, 2);
-    */
-    // TEST 8: attempt to signal for a registered handler, ensure handler runs
+    
+    // TEST 8: attempt to signal while a process is blocked sleeping
+    // - should return -666
     LOG("Handler is %x\n", &test_handler);
     PID_t p2 = syscreate(register_handler_loop, DEFAULT_STACK_SIZE);
     LOG("PID is %d\n", p2);
     syssleep(1000);
-    LOG("Signaling p2 with signal 2\n", NULL);
-    // This should cause the registered handler to print that it's running
+    LOG("Signaling p2: %d with signal 2\n", p2); 
     syskill(p2, 2);
-    
-    
 
+    // TEST 9: attempt to signal a process blocked on a send
+    // expect result of send to be -666 in p3
+    proc = syscreate(test_process, DEFAULT_STACK_SIZE);
+    PID_t p3 = syscreate(send_signal_int, DEFAULT_STACK_SIZE);
+    syskill(p3, 4);
+    
 }

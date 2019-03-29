@@ -264,6 +264,7 @@ int   is_blocked(pcb *process);
 int  sleep(pcb *process, unsigned int milliseconds);
 void tick(void);
 void print_sleep_list(void);
+void pull_from_sleep_list(pcb *process);
 
 // signal.c
 int signal(PID_t pid, int signalNumber);
