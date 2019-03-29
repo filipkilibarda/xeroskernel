@@ -86,6 +86,8 @@ int contextswitch(pcb *process) {
     // Check if an interrupt occurred
     if (hardware_interrupt_num) {
         // Want return value to be the same as original eax
+        // TODO: Maybe we should call req_id "old_eax" or something b/c we're
+        //  effectively saving the eax value of the process
         process->ret_value = req_id;
         req_id = hardware_interrupt_num;
     }

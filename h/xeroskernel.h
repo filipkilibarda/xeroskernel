@@ -166,10 +166,10 @@ struct pcb_s {
 
 // TODO: Update func decl. below s.t. take actual params
 struct device {
-    int  (*open)(void);
-    int  (*close)(void);
-    int  (*read)(void *buff, int bufflen);
-    int  (*write)(void *buff, int bufflen);
+    int  (*open)(PID_t pid);
+    int  (*close)(int fd);
+    int  (*read)(void *buff, unsigned int bufflen);
+    int  (*write)(void *buff, unsigned int bufflen);
     int  (*ioctl)(int command, ...);
     // TODO: Don't think we need the following stuff because we don't even
     //  have the corresponding system calls available to the user.
@@ -251,6 +251,7 @@ void      print_queue(pcb_queue *queue);
 void      dump_queues(void);
 void      validate_stopped_queue(void);
 void      enqueue_in_waiters(pcb *process, pcb *wait_for);
+void *    get_arg(pcb *process, int byte_offset);
 
 
 // create.c
@@ -279,8 +280,8 @@ void         syssigreturn(void *old_sp);
 int          syswait(PID_t pid);
 int          sysopen(int device_no);
 int          sysclose(int fd);
-int          syswrite(int fd, void *buff, int bufflen);
-int          sysread(int fd, void *buff, int bufflen);
+int          syswrite(int fd, void *buff, unsigned int bufflen);
+int          sysread(int fd, void *buff, unsigned int bufflen);
 int          sysioctl(int fd, unsigned long command, ...);
 int          sysgetcputimes(process_statuses *proc_stats);
 
@@ -309,9 +310,9 @@ unsigned long get_sig_mask(int signalNumber);
 // di_calls.c
 int di_open(pcb *process, int device_no);
 int di_close(pcb *process, int fd);
-int di_read(pcb *process, int fd);
-int di_write(pcb *process, int fd);
-int di_ioctl(pcb *process, int fd);
+int di_read(pcb *process, int fd, char *buff, unsigned int bufflen);
+int di_write(pcb *process, int fd, char *buff, unsigned int bufflen);
+int di_ioctl(pcb *process, int fd, ...);
 
 
 // tests

@@ -9,6 +9,7 @@
 #include <xeroskernel.h>
 #include <i386.h>
 #include <test.h>
+#include <kbd.h>
 
 typedef void (*funcptr_t)(void *);
 extern int end;
@@ -18,7 +19,6 @@ void free_process_memory(pcb *process);
 int count_pcbs(pcb_queue *queue);
 int get_cpu_times(process_statuses *proc_stats);
 int is_valid_pid(PID_t pid);
-static void *get_arg(pcb *process, int byte_offset);
 
 static char *proc_state_str[4] = {"READY", "RUNNING", "STOPPED", "BLOCKED"};
 
@@ -102,8 +102,12 @@ extern void dispatch(void) {
     int valid_pid;                // used in SYSCALL_WAIT
     void *old_sp;                 // used in SYSCALL_SIGRETURN
     int kill_result;
-    int arg1;
-    int (*handler)(pcb *process, int num);
+    int bytes_read;
+    int fd;
+    unsigned int device_no;
+    char *buff;
+    unsigned int bufflen;
+
 
     // Grab the first process to service
     pcb *process = dequeue_from_ready();
@@ -303,24 +307,32 @@ extern void dispatch(void) {
                 break;
 
             case SYSCALL_OPEN:
-                handler = di_open;
-                goto device_syscall;
-            case SYSCALL_CLOSE:
-                handler = di_close;
-                goto device_syscall;
-            case SYSCALL_READ:
-                handler = di_read;
-                goto device_syscall;
-            case SYSCALL_WRITE:
-                handler = di_write;
-                goto device_syscall;
-            case SYSCALL_IOCTL:
-                handler = di_ioctl;
-            device_syscall:
-                arg1 = *((int *) get_arg(process, 0));
-                process->ret_value = handler(process, arg1);
+                device_no = *((int *) get_arg(process, 0));
+                process->ret_value = di_open(process, device_no);
                 enqueue_in_ready(process);
                 process = dequeue_from_ready();
+                break;
+
+            case SYSCALL_CLOSE:
+                fd = *((int *) get_arg(process, 0));
+                // TODO
+                break;
+
+            case SYSCALL_READ:
+                fd = *((int *) get_arg(process, 0));
+                buff = *((char **) get_arg(process, sizeof(int)));
+                bufflen = *((unsigned int *) get_arg(process, sizeof(int) +
+                                                              sizeof(char *)));
+                bytes_read = di_read(process, fd, buff, bufflen);
+                // TODO
+                break;
+
+            case SYSCALL_WRITE:
+                // TODO
+                break;
+
+            case SYSCALL_IOCTL:
+                // TODO
                 break;
 
             case TIMER_INT:
@@ -337,7 +349,11 @@ extern void dispatch(void) {
                 break;
 
             case KEYBOARD_INT:
-//                LOG("Keyboard interrupt!");
+                LOG("Keyboard interrupt!");
+                // TODO: read_char() is just here temporarily b/c we need to
+                //  consume a byte from the keyboard before it'll accept more
+                //  interrupts.
+                read_char();
                 end_of_intr();
                 enqueue_in_ready(process);
                 process = dequeue_from_ready();
@@ -630,7 +646,7 @@ pcb *get_ready_queue(int priority) {
 /**
  * Grab system call arguments off the process's stack.
  */
-static void *get_arg(pcb *process, int byte_offset) {
+void *get_arg(pcb *process, int byte_offset) {
     return (process->eip_ptr + 24 + byte_offset);
 }
 

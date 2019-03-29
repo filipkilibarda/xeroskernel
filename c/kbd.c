@@ -16,24 +16,29 @@
 #include <kbd.h>
 #include <test.h>
 
-
 // Buffer belonging to the process that's currently executing a sysread.
 // If no pending sysread, this is NULL;
 static char *user_buff;
 static char user_bufflen;
+
+// The pid that's currently holding the keyboard device
+// 0 if no process has opened the keyboard
+static PID_t holding_pid;
 
 // Buffer belonging to the kernel. Data from keyboard is stuffed into here.
 // If there's a pending sysread, upper half will remove data from here.
 // Otherwise, data will pile up.
 static char kernel_buff[KEYBOARD_BUFFLEN];
 
-// Flag indicating whether the keyboard device is currently open.
-// TODO: Could probably get rid of this
-static int is_open;
-
 static void init_generic_keyboard(device_t *device);
 static char get_char(void);
+static int  is_locked(void);
+static int  read_from_lower_half(char *buff, unsigned int bufflen);
 
+
+/* ========================================================
+ *                        Upper half
+ * ======================================================== */
 
 /**
  * Enable interrupts from the keyboard.
@@ -41,15 +46,15 @@ static char get_char(void);
  * Return 0 if failed to open keyboard.
  * Return 1 otherwise.
  */
-int keyboard_open(void) {
+int keyboard_open(PID_t pid) {
 
-    if (is_open) {
-        LOG("Keyboard is already open!");
+    if (is_locked()) {
+        LOG("Keyboard is already in use!");
         return 0;
     }
 
     enable_irq(KEYBOARD_IRQ, 0);
-    is_open = 1;
+    holding_pid = pid;
     return 1;
 }
 
@@ -61,7 +66,7 @@ int keyboard_open(void) {
  */
 int keyboard_close(void) {
     enable_irq(KEYBOARD_IRQ, 1);
-    is_open = 0;
+    holding_pid = 0;
     LOG("Keyboard closed!");
     return 1;
 }
@@ -70,7 +75,7 @@ int keyboard_close(void) {
 /**
  * Writing to keyboard is not supported so return -1.
  */
-int keyboard_write(void *void_buff, int bufflen) {
+int keyboard_write(void *void_buff, unsigned int bufflen) {
     return -1;
 }
 
@@ -83,21 +88,9 @@ int keyboard_write(void *void_buff, int bufflen) {
  * TODO: I feel like the device driver doesn't need to know about processes.
  *       It should just know about buffers?
  */
-int keyboard_read(void *void_buff, int bufflen) {
-    // Read from the lower half buffer to see if we have already received
-    // some chars
-    char *buff = (char *) void_buff;
-    char c;
-    int i = 0;
-    while ((c = get_char()) && i < bufflen) {
-        buff[i++] = c;
-    }
-
-    if (i < bufflen - 1) {
-        // Weren't enough chars available so return something indicating that
-        // the process should be blocked.
-    }
-    return 0; // TODO
+int keyboard_read(void *_buff, unsigned int bufflen) {
+    char *buff = (char *) _buff;
+    return read_from_lower_half(buff, bufflen);
 }
 
 
@@ -143,6 +136,24 @@ static void init_generic_keyboard(device_t *device) {
  * Called from the upper half.
  */
 static char get_char(void) {
+    return 0; // TODO
+}
+
+
+/**
+ * Return 1 if the keyboard device is currently locked (in use by some process)
+ * Return 0 otherwise.
+ */
+static int is_locked(void) {
+    return holding_pid != 0;
+}
+
+
+/**
+ * Read up to bufflen bytes from the lower half and return how many bytes
+ * were read.
+ */
+static int read_from_lower_half(char *buff, unsigned int bufflen) {
     return 0; // TODO
 }
 

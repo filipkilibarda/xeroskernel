@@ -11,9 +11,10 @@
 #include <test.h>
 
 
-static int  get_free_fd(fdt_entry_t fdt[]);
-static int  is_free(fdt_entry_t *fdt_entry);
-static void close_fd(fdt_entry_t *fdt_entry);
+static int       get_free_fd(fdt_entry_t fdt[]);
+static int       is_free(fdt_entry_t *fdt_entry);
+static void      close_fd(fdt_entry_t *fdt_entry);
+static int       is_valid_fd(pcb *process, int fd);
 static device_t *get_device(int device_no);
 
 
@@ -22,6 +23,7 @@ static device_t *get_device(int device_no);
  * Return -1 on failure, e.g., if device number is invalid.
  */
 int di_open(pcb *process, int device_no) {
+
     int fd = get_free_fd(process->fdt);
     if (fd == -1)
         return -1;
@@ -30,11 +32,10 @@ int di_open(pcb *process, int device_no) {
     if (!device)
         return -1;
 
-    if (!device->open())
+    if (!device->open(process->pid))
         return -1;
 
     process->fdt[fd].device = device;
-
     LOG("Opened device %d on fd %d", device_no, fd);
     return fd;
 }
@@ -49,9 +50,24 @@ int di_close(pcb *process, int fd) {
 
 
 /**
+ * Return the number of bytes that were read into the buffer.
+ * Return -1 if some other error occurs.
+ *
+ * If fewer than bufflen bytes are read, then the dispatcher should handle
+ * blocking the process. Process would then be unblocked after receiving a
+ * notification from the device driver when the pending read is satisfied.
+ */
+int di_read(pcb *process, int fd, char *buff, unsigned int bufflen) {
+    if (!is_valid_fd(process, fd) || buff == NULL)
+        return -1;
+    return process->fdt[fd].device->read(buff, bufflen);
+}
+
+
+/**
  * TODO
  */
-int di_read(pcb *process, int fd) {
+int di_write(pcb *process, int fd, char *buff, unsigned int bufflen) {
     return 0; // TODO
 }
 
@@ -59,15 +75,7 @@ int di_read(pcb *process, int fd) {
 /**
  * TODO
  */
-int di_write(pcb *process, int fd) {
-    return 0; // TODO
-}
-
-
-/**
- * TODO
- */
-int di_ioctl(pcb *process, int fd) {
+int di_ioctl(pcb *process, int fd, ...) {
     return 0; // TODO
 }
 
@@ -86,7 +94,23 @@ static void close_fd(fdt_entry_t *fdt_entry) {
 
 
 /**
+ * Return 1 if file descriptor is valid, corresponds to entry in the process
+ * fdt that is actually open (a call to sysopen returned it).
+ *
+ * Return 0 otherwise
+ */
+static int is_valid_fd(pcb *process, int fd) {
+    if (fd < 0 || fd >= MAX_OPEN_FILES)
+        return 0;
+    if (is_free(&process->fdt[fd]))
+        return 0;
+    return 1;
+}
+
+
+/**
  * Return 1 if file descriptor entry is closed (free for use)
+ * Return 0 otherwise
  */
 static int is_free(fdt_entry_t *fdt_entry) {
     return fdt_entry->device == NULL;

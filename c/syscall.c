@@ -224,7 +224,7 @@ int sysclose(int fd) {
  * Write to a device.
  * TODO more details
  */
-int syswrite(int fd, void *buff, int bufflen) {
+int syswrite(int fd, void *buff, unsigned int bufflen) {
     return syscall(SYSCALL_WRITE, buff, bufflen);
 }
 
@@ -233,7 +233,7 @@ int syswrite(int fd, void *buff, int bufflen) {
  * Read from a device.
  * TODO more details
  */
-int sysread(int fd, void *buff, int bufflen) {
+int sysread(int fd, void *buff, unsigned int bufflen) {
     return syscall(SYSCALL_READ, buff, bufflen);
 }
 
