@@ -238,3 +238,46 @@ extern void root(void) {
 extern void idleproc(void) {
     for(;;);
 }
+
+/**
+ * Returns 0 if user and pass is correct, else -1
+ */
+int verify_user(void *user, void *pass) {
+    // Stub
+    return 0;
+}
+
+/**
+ * The shell program
+ */
+void shell(void) {
+
+}
+
+/**
+ * The init program, as specified in A3
+ */
+extern void init_program(void) {
+    int fd;
+    sysputs("===========================================\n");
+    sysputs("Welcome to Xeros - a not so experimental OS\n");
+    sysputs("===========================================\n");
+    // TODO: Put keyboard device number here
+    START: 
+    // TODO: is this the correct device_number?
+    fd = sysopen(1);
+    sysputs("Username:");
+    // Allocate buffer to hold 'cs415' as username
+    void *user = kmalloc(6);
+    sysread(fd, user, 5);
+    // TODO: Turn keyboard echoing off here
+    sysputs("Password:");
+    // Allocate buffer to hold 'EveryonegetsanA' as password
+    void *pass = kmalloc(16);
+    sysread(fd, pass, 16);
+    sysclose(fd);
+    if (verify_user(user, pass) != 0) goto START;
+    PID_t shell_pid = syscreate(shell, DEFAULT_STACK_SIZE);
+    syswait(shell_pid);
+    goto START;
+} 

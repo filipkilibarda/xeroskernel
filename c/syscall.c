@@ -204,7 +204,10 @@ extern int sysgetcputimes(process_statuses *proc_stats) {
 
 /**
  * Open a device. Return the file descriptor on success.
- * TODO more details
+ * 
+ * Returns:
+ * - on failure, -1
+ * - file descriptor in range 0-3 (inclusive) on success
  */
 extern int sysopen(int device_no) {
     return syscall(SYSCALL_OPEN, device_no);
@@ -213,7 +216,10 @@ extern int sysopen(int device_no) {
 
 /**
  * Close a device.
- * TODO more details
+ * 
+ * Returns:
+ * - on success, 0
+ * - on failure, -1
  */
 extern int sysclose(int fd) {
     return syscall(SYSCALL_CLOSE, fd);
@@ -222,7 +228,10 @@ extern int sysclose(int fd) {
 
 /**
  * Write to a device.
- * TODO more details
+ * 
+ * Returns: 
+ * - on success, # of bytes written
+ * - on failure, -1 
  */
 extern int syswrite(int fd, void *buff, int bufflen) {
     return syscall(SYSCALL_WRITE, buff, bufflen);
@@ -231,7 +240,11 @@ extern int syswrite(int fd, void *buff, int bufflen) {
 
 /**
  * Read from a device.
- * TODO more details
+ * 
+ * Returns:
+ * - 0 to indicate an EOF
+ * - on error, -1
+ * - otherwise, # of bytes read
  */
 extern int sysread(int fd, void *buff, int bufflen) {
     return syscall(SYSCALL_READ, buff, bufflen);
@@ -240,7 +253,10 @@ extern int sysread(int fd, void *buff, int bufflen) {
 
 /**
  * Read from a device.
- * TODO more details
+ * 
+ * Returns: 
+ * - on success, 0
+ * - on error, -1
  */
 extern int sysioctl(int fd, unsigned long command, ...) {
     // TODO: Figure out how to use va_args here.

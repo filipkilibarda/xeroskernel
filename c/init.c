@@ -18,13 +18,13 @@ extern char	*maxaddr;	/* max memory address (set in i386.c)	*/
 device_t device_table[MAX_DEVICES]; // Initialize the device table.
 
 /************************************************************************/
-/***				NOTE:				      ***/
-/***								      ***/
+/***				             NOTE:				                  ***/
+/***								                                  ***/
 /***   This is where the system begins after the C environment has    ***/
 /***   been established.  Interrupts are initially DISABLED.  The     ***/
 /***   interrupt table has been initialized with a default handler    ***/
-/***								      ***/
-/***								      ***/
+/***								                                  ***/
+/***								                                  ***/
 /************************************************************************/
 
 /*------------------------------------------------------------------------

@@ -59,9 +59,11 @@ int signal(PID_t pid, int signalNumber) {
     // Check if the process we want to signal is blocked
     if (process_to_signal->state == PROC_BLOCKED) {
         process_to_signal->state = PROC_READY;
-        // TODO: There may be conditions where return value should be different
+        // TODO: From assignment description, may be
+        // conditions where return value should be different?
         process_to_signal->ret_value = -666;
     }
+
     // Get the handler
     handler = process_to_signal->sig_handlers[signalNumber];
 
@@ -77,8 +79,6 @@ int signal(PID_t pid, int signalNumber) {
     CS = getCS();
     OLD_RV = process_to_signal->ret_value;
 
-    // kprintf("Pending signal: %d, signalNumber: %d\n", pending_signal, signalNumber);
-    // kprintf("PCB sig_prio: %d\n", process_to_signal->sig_prio);
     // If there's a pending signal with higher priority,
     // set up its signal context.
     if (pending_signal > signalNumber) {
@@ -103,7 +103,6 @@ int signal(PID_t pid, int signalNumber) {
  * function after calling syssigreturn. 
  **/ 
 extern void sigtramp(void (*handler)(void *), void *context) {
-    kprintf("Sigtramp handler is %x\n", handler);
     if (handler != NULL) {
         kprintf("SIGTRAMP: Calling handler\n");
         handler(context);
@@ -116,11 +115,16 @@ extern void sigtramp(void (*handler)(void *), void *context) {
 
 
 /**
- * Initializes signal context on process stack
+ * Initializes signal context on process stack. 
+ * Pushes process context (stack pointer) and handler
+ * in argument position for sigtramp() to use. 
+ * Pushes signal code to be recovered when resetting bitmask. 
+ * Pushes current return value of process to be recovered
+ * by syssigreturn()
  */
 void init_signal_context(pcb *process_to_signal) {
     process_to_signal->sig_prio = signal_code;
-        // Put old return value on signal context
+    
         __asm __volatile( " \
             movl %%esp, kern_stack \n\
             movl proc_stack, %%esp \n\
@@ -319,10 +323,12 @@ void _test_signal(void) {
     result = syskill(1000, 3);
     ASSERT_INT_EQ(-514, result);
 
+    // TODO: Currently failing. 
     // TEST 12: syswait on a process, then kill that process it's 
     // waiting on. 
-    //PID_t killer = syscreate(kill_process, DEFAULT_STACK_SIZE);
-    //syswait(proc);
-    //LOG("RETURNED TO TEST", NULL);
+    // Expect that this will cause us to return control back to next line
+    // PID_t killer = syscreate(kill_process, DEFAULT_STACK_SIZE);
+    // syswait(proc);
+    // LOG("RETURNED TO TEST", NULL);
 
 }

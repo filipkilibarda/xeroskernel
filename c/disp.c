@@ -99,9 +99,9 @@ extern void dispatch(void) {
     funcptr_t newHandler;         // used in SYSCALL_SIG_HANDLER
     funcptr_t *oldHandler;        // used in SYSCALL_SIG_HANDLER
     int valid_pid;                // used in SYSCALL_WAIT
-    void *old_sp;                 // used in SYSCALL_SIGRETURN
-    int kill_result;    
-    int old_ret_value;
+    void *old_sp;                 // used in SYSCALL_SIG_RETURN
+    int kill_result;              // used in SYSCALL_STOP
+    int old_ret_value;            // used in SYSCALL_SIG_RETURN
 
     // Grab the first process to service
     pcb *process = dequeue_from_ready();
@@ -183,9 +183,8 @@ extern void dispatch(void) {
                 process->ret_value = -583;
                 
                 else {
-                    kprintf("DISPATCHER: Signaling\n");
+                    LOG("SIGNALING\n", NULL);
                     signal(pid, signalNumber);
-                    kprintf("DISPATCHER: Signal stack set up\n");
                     process->ret_value = 0; // Considered success
                 }
 
@@ -297,6 +296,8 @@ extern void dispatch(void) {
                     enqueue_in_ready(process);
                 }
                 // Check that process isn't waiting on self
+                // TODO: is this really not allowed? I assume so, 
+                // but it doesn't really specify 
                 else if (process->pid == pid) {
                     process->ret_value = -1;
                     enqueue_in_ready(process);
@@ -379,10 +380,11 @@ int kill(PID_t pid) {
     free_process_memory(process);
     enqueue_in_stopped(process);
 
+    // Check if there were any processes waiting for this process to die
     // if(process->waiting_for != 0) {
     //     LOG("Pulling from waiter queue\n", NULL);
-    //     //pull_from_queue(&(get_pcb(process->waiting_for)->waiter_queue), process);
-    //     //process->waiting_for = 0;
+    //     pull_from_queue(&(get_pcb(process->waiting_for)->waiter_queue), process);
+    //     process->waiting_for = 0;
     // }
 
     pull_from_queue(ready_queues[process->priority], process);
@@ -528,11 +530,9 @@ void enqueue_in_waiters(pcb *process, pcb *wait_for) {
     // (because it messes with the next field and that 
     // messes things up if a process is signaled while
     // on another queue [i.e. senders, receivers, sleepers])
-    LOG("Enqueuing in waiters", NULL);
-    enqueue(&wait_for->waiter_queue, process);
-    LOG("Enqueued in waiters", NULL);
 
 }
+
 
 
 /**

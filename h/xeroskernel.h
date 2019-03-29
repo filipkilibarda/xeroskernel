@@ -120,6 +120,7 @@ typedef struct pcb_queue_s {
     struct pcb_s *end_of_line;
 } pcb_queue;
 
+
 // Process Control Block
 struct pcb_s {
     PID_t pid;
@@ -146,6 +147,7 @@ struct pcb_s {
     unsigned long sig_mask;
     int sig_prio;             // The current highest priority signal for this process 
     pcb_queue waiter_queue;   // pcbs wanting to wait for this to end.
+    struct pcb_s *next_waiter; // next in line in waiter queue
 };
 typedef struct pcb_s pcb;
 
@@ -250,6 +252,11 @@ unsigned int syssleep(unsigned int milliseconds);
 int          syssighandler(int signal, void (*newHandler)(void *), void (**oldHandler)(void *));
 void         syssigreturn(void *old_sp);
 int          syswait(PID_t pid);
+int          sysopen(int device_number);
+int          sysclose(int fd);
+int          syswrite(int fd, void *buff, int bufflen);
+int          sysread(int fd, void *buff, int bufflen);
+int          sysioctl(int fd, unsigned long command, ...);
 
 
 // msg.c
