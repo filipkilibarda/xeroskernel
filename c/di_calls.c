@@ -9,6 +9,7 @@
 
 #include <xeroskernel.h>
 #include <test.h>
+#include <stdarg.h>
 
 
 static int       get_free_fd(fdt_entry_t fdt[]);
@@ -42,10 +43,20 @@ int di_open(pcb *process, int device_no) {
 
 
 /**
- * TODO
+ * Closes the device with the specified fd, if it exists. 
+ * Returns 0 on success, -1 on failure.
  */
 int di_close(pcb *process, int fd) {
-    return 0; // TODO
+    if (!is_valid_fd(process, fd)) return -1;
+    
+    device_t *device = process->fdt[fd].device;
+    int result = device->close(fd);
+    if (result == -1) return -1;
+    
+    // Remove entry from process FDT
+    process->fdt[fd].device = NULL;
+
+    return 0; 
 }
 
 
@@ -58,25 +69,56 @@ int di_close(pcb *process, int fd) {
  * notification from the device driver when the pending read is satisfied.
  */
 int di_read(pcb *process, int fd, char *buff, unsigned int bufflen) {
-    if (!is_valid_fd(process, fd) || buff == NULL)
+    if (!is_valid_fd(process, fd) || buff == NULL || bufflen <= 0)
         return -1;
     return process->fdt[fd].device->read(buff, bufflen);
 }
 
 
 /**
- * TODO
+ * Writes to the device specified by fd, if it is valid. 
  */
 int di_write(pcb *process, int fd, char *buff, unsigned int bufflen) {
-    return 0; // TODO
+    if (!is_valid_fd(process, fd) || buff == NULL || bufflen <= 0)
+        return -1;
+    return process->fdt[fd].device->write(buff, bufflen); 
 }
 
 
 /**
- * TODO
+ * Performs device specific control function
  */
 int di_ioctl(pcb *process, int fd, ...) {
-    return 0; // TODO
+    va_list ap;
+    va_start(ap, fd);
+    unsigned long command = va_arg(ap, unsigned long);
+
+    if (!is_valid_fd(process, fd)) 
+        return -1;
+
+    int result;
+    int character;
+    switch(command) {
+        case 53:
+            character = va_arg(ap, int);
+            result = process->fdt[fd].device->ioctl(command, character);
+            break;
+
+        case 55:
+            result = process->fdt[fd].device->ioctl(command);
+            break;
+
+        case 56:
+            result = process->fdt[fd].device->ioctl(command);
+            break;
+
+        default:
+            result = -1;
+            break;
+    }
+
+    va_end(ap);
+    return result;
 }
 
 

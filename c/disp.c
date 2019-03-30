@@ -10,6 +10,7 @@
 #include <i386.h>
 #include <test.h>
 #include <kbd.h>
+#include <stdarg.h>
 
 typedef void (*funcptr_t)(void *);
 extern int end;
@@ -111,10 +112,14 @@ extern void dispatch(void) {
     int kill_result;
     int old_ret_value;
     int bytes_read;
+    int bytes_written;
     int fd;
     unsigned int device_no;
     char *buff;
     unsigned int bufflen;
+    va_list ap;
+    unsigned long command;
+    int character; 
 
 
     // Grab the first process to service
@@ -346,23 +351,83 @@ extern void dispatch(void) {
 
             case SYSCALL_CLOSE:
                 fd = GET_ARG(int, 0);
-                // TODO
+                if (fd < 0 || fd > 3) {
+                    process->ret_value = -1;
+                } else {
+                    process->ret_value = di_close(process, fd);
+                }
+                
+                enqueue_in_ready(process);
+                process = dequeue_from_ready();
+
                 break;
 
             case SYSCALL_READ:
                 fd = GET_ARG(int, 0);
                 buff = GET_ARG(char *, sizeof(int));
                 bufflen = GET_ARG(unsigned int, sizeof(int) + sizeof(char *));
-                bytes_read = di_read(process, fd, buff, bufflen);
-                // TODO
+
+                if (bufflen <= 0 || buff == NULL) process->ret_value = -1;
+                else if (fd < 0 || fd > 3) process->ret_value = -1;
+                else {
+                    bytes_read = di_read(process, fd, buff, bufflen);
+                    process->ret_value = bytes_read;
+                }
+
+                enqueue_in_ready(process);
+                process = dequeue_from_ready();
+
                 break;
 
             case SYSCALL_WRITE:
-                // TODO
+                fd = GET_ARG(int, 0);
+                buff = GET_ARG(char *, sizeof(int));
+                bufflen = GET_ARG(unsigned int, sizeof(int) + sizeof(char *));
+
+                if (bufflen <= 0 || buff == NULL) process->ret_value = -1;
+                else if (fd < 0 || fd > 3) process->ret_value = -1;
+                else {
+                    bytes_written = di_write(process, fd, buff, bufflen);
+                    process->ret_value = bytes_written;
+                }
+
+                enqueue_in_ready(process);
+                process = dequeue_from_ready();
+
                 break;
 
             case SYSCALL_IOCTL:
-                // TODO
+                fd = GET_ARG(int, 0);
+                command = GET_ARG(unsigned long, sizeof(int));
+                ap = GET_ARG(va_list, sizeof(int) + sizeof(unsigned long));
+                character = va_arg(ap, int);
+
+                if (fd < 0 || fd > 3) process->ret_value = -1;
+               
+                switch(command) {
+                    case 53: 
+                        if (character == NULL) process->ret_value = -1;
+                        else {
+                            process->ret_value = di_ioctl(process, fd, command, character);
+                        }
+                        break;
+
+                    case 55:
+                        process->ret_value = di_ioctl(process, fd, command);
+                        break;
+                        
+                    case 56:
+                        process->ret_value = di_ioctl(process, fd, command);
+                        break;
+
+                    default: 
+                        process->ret_value = -1;
+                        break;
+                    }
+
+                enqueue_in_ready(process);
+                process = dequeue_from_ready();
+
                 break;
 
             case TIMER_INT:
@@ -384,6 +449,13 @@ extern void dispatch(void) {
                 //  consume a byte from the keyboard before it'll accept more
                 //  interrupts.
                 read_char();
+                // Put keypress into kernel buffer, if possible
+
+                // Notify upper half that key was put into buffer
+                // if there's a process(es?) blocked on a read, 
+                // copy info into their buffer, and unblock them 
+                // (if # of bytes read is sufficient now)
+                
                 end_of_intr();
                 enqueue_in_ready(process);
                 process = dequeue_from_ready();

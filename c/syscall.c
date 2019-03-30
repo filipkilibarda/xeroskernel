@@ -259,6 +259,9 @@ int sysread(int fd, void *buff, unsigned int bufflen) {
  * - on error, -1
  */
 int sysioctl(int fd, unsigned long command, ...) {
-    // TODO: Figure out how to use va_args here.
-    return syscall(SYSCALL_IOCTL, command);
+    va_list ap; 
+    va_start(ap, command);
+    int result = syscall(SYSCALL_IOCTL, command, ap);
+    va_end(ap);
+    return result;
 }
