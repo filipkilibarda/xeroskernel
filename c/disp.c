@@ -179,6 +179,7 @@ extern void dispatch(void) {
                 // If process to signal is blocked, set its return value to
                 // -666
                 else if (process_pcb->state == PROC_BLOCKED) {
+                    if (on_sleeper_queue(process_pcb) == -1)
                     process_pcb->ret_value = -666;
                     process_pcb->state = PROC_READY;
                     // TODO: how do we determine which process it was blocked on?

@@ -119,6 +119,7 @@ void pull_from_sleep_list(pcb *process) {
     pcb *prev = NULL;
     while (cur != NULL) {
         if (cur == process) {
+            LOG("Pulling pid %d from sleep list", cur->pid);
             if (prev == NULL) {
                 sleep_delta_list = cur->next;
             } else {
@@ -128,6 +129,18 @@ void pull_from_sleep_list(pcb *process) {
         prev = cur;
         cur = cur->next;
     }
+}
+
+/**
+ * Returns -1 if not on sleeper queue, 0 if on sleeper queue
+ */
+int on_sleeper_queue(pcb *process) {
+    pcb *cur = sleep_delta_list;
+    while(cur != NULL) {
+        if (cur == process) return 0;
+        cur = cur->next;
+    }
+    return -1;
 }
 
 // For debugging 

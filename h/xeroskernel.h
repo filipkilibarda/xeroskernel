@@ -301,6 +301,7 @@ int  sleep(pcb *process, unsigned int milliseconds);
 void tick(void);
 void print_sleep_list(void);
 void pull_from_sleep_list(pcb *process);
+int  on_sleeper_queue(pcb *process);
 
 
 // signal.c

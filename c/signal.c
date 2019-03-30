@@ -217,7 +217,7 @@ void register_handler_loop(void) {
     int result = syssighandler(2, newHandler, oldHandler);
     ASSERT_INT_EQ(0, result);
     result = syssleep(10000); 
-    ASSERT_INT_EQ(-666, result);
+    ASSERT(result > 0, "Result should have been > 0\n");
     kfree(oldHandler);
 }
 
@@ -233,6 +233,13 @@ void send_signal_int(void) {
 void proc_killer(void) {
     syssleep(200);
     syskill(proc, 31);
+}
+
+
+void sleep_a_while(void) {
+    int result = syssleep(20000);
+    LOG("Sleep result: %d\n", result);
+    ASSERT(result > 0, "Result should have been > 0\n");
 }
 
 /**
@@ -333,5 +340,12 @@ void _test_signal(void) {
     syscreate(proc_killer, DEFAULT_STACK_SIZE);
     syswait(proc);
     LOG("RETURNED TO TEST", NULL);
+
+    // TEST 13: Interrupt a process sleeping for a while with a signal
+    // Expect that its return value will not be 0.
+    PID_t sleeper = syscreate(sleep_a_while, DEFAULT_STACK_SIZE);
+    syssleep(1000);
+    LOG("Calling syskill on sleeper\n");
+    syskill(sleeper, 5);
 
 }
