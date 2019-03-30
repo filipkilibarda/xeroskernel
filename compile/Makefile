@@ -40,10 +40,10 @@ LDSTR	= -e start -Ttext ${TEXTSPOT}
 #Do NOT modify these lines
 SOBJ = startup.o intr.o 
 IOBJ = init.o i386.o evec.o kprintf.o
-UOBJ = mem.o disp.o ctsw.o syscall.o create.o user.o msg.o sleep.o signal.o
+UOBJ = mem.o disp.o ctsw.o syscall.o create.o user.o msg.o sleep.o signal.o di_calls.o kbd.o
 
 #Add your sources here
-MY_OBJ = 
+MY_OBJ =
 
 
 # Don't modiy any of this unless you are really sure
@@ -74,7 +74,7 @@ ${IOBJ}:
 ${UOBJ}: 
 	${CC} ${CFLAGS} ../c/`basename $@ .o`.[c]
 
-init.o: ../c/init.c ../h/i386.h ../h/xeroskernel.h ../h/xeroslib.h
+init.o: ../c/init.c ../h/i386.h ../h/xeroskernel.h ../h/xeroslib.h ../h/kbd.h
 i386.o: ../c/i386.c ../h/i386.h ../h/icu.h ../h/xeroskernel.h ../h/xeroslib.h
 evec.o: ../c/evec.c ../h/i386.h ../h/xeroskernel.h ../h/xeroslib.h
 kprintf.o: ../c/kprintf.c ../h/i386.h ../h/xeroskernel.h ../h/xeroslib.h
@@ -87,3 +87,5 @@ user.o: ../c/user.c ../h/xeroskernel.h ../h/xeroslib.h
 msg.o: ../c/msg.c ../h/xeroskernel.h ../h/xeroslib.h 
 sleep.o: ../c/sleep.c ../h/xeroskernel.h ../h/xeroslib.h
 signal.o: ../c/signal.c ../h/xeroskernel.h ../h/xeroslib.h
+kbd.o: ../c/kbd.c ../h/kbd.h ../h/xeroskernel.h ../h/i386.h
+di_calls.o: ../c/di_calls.c ../h/xeroskernel.h

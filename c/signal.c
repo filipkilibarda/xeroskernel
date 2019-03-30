@@ -202,7 +202,7 @@ void test_signal(void) {
 
 void test_process(void) {
     // Does nothing.
-    for(;;);
+    for(int i = 0; i < 10000000; i++) sysyield();
 }
 
 void test_process_prints(void) {
@@ -230,8 +230,8 @@ void send_signal_int(void) {
     ASSERT_INT_EQ(-666, result);
 }
 
-void kill_process(void) {
-    syssleep(2000);
+void proc_killer(void) {
+    syssleep(200);
     syskill(proc, 31);
 }
 
@@ -247,7 +247,9 @@ void _test_signal(void) {
     syssleep(200);
     syskill(p1, 31);
     ASSERT_INT_EQ(PROC_STOPPED, get_pcb(p1)->state);
-    ASSERT_INT_EQ(30, get_num_stopped_processes());
+    // NOTE: this number changes based on how many tests/
+    // processes are set up in init.c
+    ASSERT_INT_EQ(29, get_num_stopped_processes());
 
     // ======================================================
     // BEGIN SYSSIGHANDLER TESTS
@@ -309,6 +311,7 @@ void _test_signal(void) {
     LOG("Signaling p2: %d with signal 2\n", p2); 
     syskill(p2, 2);
 
+    syssleep(1000);
     // TEST 9: attempt to signal a process blocked on a send
     // expect result of send to be -666 in p3
     proc = syscreate(test_process, DEFAULT_STACK_SIZE);
@@ -323,12 +326,12 @@ void _test_signal(void) {
     result = syskill(1000, 3);
     ASSERT_INT_EQ(-514, result);
 
-    // TODO: Currently failing. 
     // TEST 12: syswait on a process, then kill that process it's 
     // waiting on. 
     // Expect that this will cause us to return control back to next line
-    // PID_t killer = syscreate(kill_process, DEFAULT_STACK_SIZE);
-    // syswait(proc);
-    // LOG("RETURNED TO TEST", NULL);
+    proc = syscreate(test_process, DEFAULT_STACK_SIZE);
+    syscreate(proc_killer, DEFAULT_STACK_SIZE);
+    syswait(proc);
+    LOG("RETURNED TO TEST", NULL);
 
 }

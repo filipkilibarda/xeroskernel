@@ -33,7 +33,7 @@ static int req_id;
  * 
  * Returns the result of the system call.
  * */
-extern int syscall(int call, ...) {
+int syscall(int call, ...) {
 
     req_id = call;
     // Save call type into eax and
@@ -54,7 +54,7 @@ extern int syscall(int call, ...) {
  * 
  * Returns the process ID of the created process.
  * */
-extern unsigned int syscreate(void (*func)(void), int stack_size) {
+unsigned int syscreate(void (*func)(void), int stack_size) {
     // Ensure function pointer is within legal bounds
     if ((int *) func > &end) {
         return -1;
@@ -65,26 +65,26 @@ extern unsigned int syscreate(void (*func)(void), int stack_size) {
 /**
  * Yields the calling process. 
  * */
-extern void sysyield(void) {
+void sysyield(void) {
     syscall(SYSCALL_YIELD, 0);
 }
 
 /**
  * Stops the calling process.
  * */
-extern void sysstop(void) {
+void sysstop(void) {
     syscall(SYSCALL_STOP, 0);
 }
 
 
 // Returns the PID of the current process
-extern PID_t sysgetpid(void) {
+PID_t sysgetpid(void) {
     return syscall(SYSCALL_GET_PID, 0);
 }
 
 // Performs output to the screen.
 // Takes a null-terminated string as input.
-extern void sysputs(char *str) {
+void sysputs(char *str) {
     syscall(SYSCALL_PUTS, str);
 }
 
@@ -95,7 +95,7 @@ extern void sysputs(char *str) {
  * -583 if signal number is invalid.
  * It is OK for a process to kill itself.
  */
-extern int syskill(PID_t pid, int signalNumber) {
+int syskill(PID_t pid, int signalNumber) {
     return syscall(SYSCALL_KILL, pid, signalNumber);
 }
 
@@ -105,7 +105,7 @@ extern int syskill(PID_t pid, int signalNumber) {
  *
  * Returns the priority prior to the call, or the current priority (if -1)
  */
-extern int syssetprio(int priority) {
+int syssetprio(int priority) {
     return syscall(SYSCALL_SET_PRIO, priority);
 }
 
@@ -119,7 +119,7 @@ extern int syssetprio(int priority) {
  * - Returns −100 if any other problem is detected
  * - On success, 0
  **/
-extern int syssend(PID_t dest_pid, unsigned long num) {
+int syssend(PID_t dest_pid, unsigned long num) {
     return syscall(SYSCALL_SEND, dest_pid, num);
 }
 
@@ -137,7 +137,7 @@ extern int syssend(PID_t dest_pid, unsigned long num) {
  * - Other issues, -100
  * - On success, 0
  **/
-extern int sysrecv(PID_t *from_pid, unsigned long *num) {
+int sysrecv(PID_t *from_pid, unsigned long *num) {
     return syscall(SYSCALL_RECV, from_pid, num);
 }
 
@@ -146,7 +146,7 @@ extern int sysrecv(PID_t *from_pid, unsigned long *num) {
  *
  * Returns the amount of time remaining to sleep when process was restored.
  */
-extern unsigned int syssleep(unsigned int milliseconds) {
+unsigned int syssleep(unsigned int milliseconds) {
     return syscall(SYSCALL_SLEEP, milliseconds);
 }
 
@@ -197,7 +197,7 @@ int syswait(PID_t pid) {
  * Populate the given structure with cpu time and state information about all
  * the active processes in the system.
  */
-extern int sysgetcputimes(process_statuses *proc_stats) {
+int sysgetcputimes(process_statuses *proc_stats) {
     return syscall(SYSCALL_GET_CPU_TIMES, proc_stats);
 }
 
@@ -209,7 +209,7 @@ extern int sysgetcputimes(process_statuses *proc_stats) {
  * - on failure, -1
  * - file descriptor in range 0-3 (inclusive) on success
  */
-extern int sysopen(int device_no) {
+int sysopen(int device_no) {
     return syscall(SYSCALL_OPEN, device_no);
 }
 
@@ -221,7 +221,7 @@ extern int sysopen(int device_no) {
  * - on success, 0
  * - on failure, -1
  */
-extern int sysclose(int fd) {
+int sysclose(int fd) {
     return syscall(SYSCALL_CLOSE, fd);
 }
 
@@ -233,7 +233,7 @@ extern int sysclose(int fd) {
  * - on success, # of bytes written
  * - on failure, -1 
  */
-extern int syswrite(int fd, void *buff, int bufflen) {
+int syswrite(int fd, void *buff, unsigned int bufflen) {
     return syscall(SYSCALL_WRITE, buff, bufflen);
 }
 
@@ -246,7 +246,7 @@ extern int syswrite(int fd, void *buff, int bufflen) {
  * - on error, -1
  * - otherwise, # of bytes read
  */
-extern int sysread(int fd, void *buff, int bufflen) {
+int sysread(int fd, void *buff, unsigned int bufflen) {
     return syscall(SYSCALL_READ, buff, bufflen);
 }
 
@@ -258,7 +258,7 @@ extern int sysread(int fd, void *buff, int bufflen) {
  * - on success, 0
  * - on error, -1
  */
-extern int sysioctl(int fd, unsigned long command, ...) {
+int sysioctl(int fd, unsigned long command, ...) {
     // TODO: Figure out how to use va_args here.
     return syscall(SYSCALL_IOCTL, command);
 }

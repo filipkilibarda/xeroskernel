@@ -6,9 +6,10 @@
  **/
 
 #include <i386.h>
+#include <kbd.h>
+#include <test.h>
 #include <xeroskernel.h>
 #include <xeroslib.h>
-#include <test.h>
 
 extern	int	entry( void );  /* start of kernel image, use &start    */
 extern	int	end( void );    /* end of kernel image, use &end        */
@@ -16,6 +17,8 @@ extern  long	freemem; 	/* start of free memory (set in i386.c) */
 extern char	*maxaddr;	/* max memory address (set in i386.c)	*/
 
 device_t device_table[MAX_DEVICES]; // Initialize the device table.
+
+static void init_device_table(void);
 
 /************************************************************************/
 /***				             NOTE:				                  ***/
@@ -57,8 +60,10 @@ void initproc(void) {
     kprintf("context inited\n");
 
     init_ipc();
+    init_device_table();
 
     create_idle_process();
+    create(test_keyboard, DEFAULT_STACK_SIZE);
     // Test IPC functionality
     //create(test_ipc, DEFAULT_STACK_SIZE);
     create(test_signal, DEFAULT_STACK_SIZE);
@@ -74,4 +79,13 @@ void initproc(void) {
     kprintf("\n\nWhen your  kernel is working properly ");
     kprintf("this line should never be printed!\n");
     for(;;); /* loop forever */
+}
+
+
+/**
+ * Populate the device table with our two keyboard devices.
+ */
+static void init_device_table(void) {
+    init_quiet_keyboard(device_table, 0);
+    init_echo_keyboard(device_table, 1);
 }

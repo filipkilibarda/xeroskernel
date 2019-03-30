@@ -9,6 +9,7 @@
 #include <xeroskernel.h>
 #include <i386.h>
 #include <test.h>
+#include <kbd.h>
 
 typedef void (*funcptr_t)(void *);
 extern int end;
@@ -81,6 +82,13 @@ void reset_pcb_table(void) {
 
 
 /**
+ * Grab an argument off the process's stack that has a certain type and byte
+ * offset from the first argument.
+ */
+#define GET_ARG(type, offset) *((type *) (process->eip_ptr + 24 + offset))
+
+
+/**
  * Schedules processes and handles system calls from running processes.
  **/
 extern void dispatch(void) {
@@ -99,9 +107,15 @@ extern void dispatch(void) {
     funcptr_t newHandler;         // used in SYSCALL_SIG_HANDLER
     funcptr_t *oldHandler;        // used in SYSCALL_SIG_HANDLER
     int valid_pid;                // used in SYSCALL_WAIT
-    void *old_sp;                 // used in SYSCALL_SIG_RETURN
-    int kill_result;              // used in SYSCALL_STOP
-    int old_ret_value;            // used in SYSCALL_SIG_RETURN
+    void *old_sp;                 // used in SYSCALL_SIGRETURN
+    int kill_result;
+    int old_ret_value;
+    int bytes_read;
+    int fd;
+    unsigned int device_no;
+    char *buff;
+    unsigned int bufflen;
+
 
     // Grab the first process to service
     pcb *process = dequeue_from_ready();
@@ -322,6 +336,34 @@ extern void dispatch(void) {
                 process = dequeue_from_ready();
                 break;
 
+            case SYSCALL_OPEN:
+                device_no = GET_ARG(int, 0);
+                process->ret_value = di_open(process, device_no);
+                enqueue_in_ready(process);
+                process = dequeue_from_ready();
+                break;
+
+            case SYSCALL_CLOSE:
+                fd = GET_ARG(int, 0);
+                // TODO
+                break;
+
+            case SYSCALL_READ:
+                fd = GET_ARG(int, 0);
+                buff = GET_ARG(char *, sizeof(int));
+                bufflen = GET_ARG(unsigned int, sizeof(int) + sizeof(char *));
+                bytes_read = di_read(process, fd, buff, bufflen);
+                // TODO
+                break;
+
+            case SYSCALL_WRITE:
+                // TODO
+                break;
+
+            case SYSCALL_IOCTL:
+                // TODO
+                break;
+
             case TIMER_INT:
                 // Tick the clock and signal completion
                 tick();
@@ -336,7 +378,12 @@ extern void dispatch(void) {
                 break;
 
             case KEYBOARD_INT:
-                kprintf("Keyboard interrupt!\n");
+                LOG("Keyboard interrupt!");
+                // TODO: read_char() is just here temporarily b/c we need to
+                //  consume a byte from the keyboard before it'll accept more
+                //  interrupts.
+                read_char();
+                end_of_intr();
                 enqueue_in_ready(process);
                 process = dequeue_from_ready();
                 break;
@@ -381,11 +428,7 @@ int kill(PID_t pid) {
     enqueue_in_stopped(process);
 
     // Check if there were any processes waiting for this process to die
-    // if(process->waiting_for != 0) {
-    //     LOG("Pulling from waiter queue\n", NULL);
-    //     pull_from_queue(&(get_pcb(process->waiting_for)->waiter_queue), process);
-    //     process->waiting_for = 0;
-    // }
+    wake_up_waiters(&process->waiter_queue);
 
     pull_from_queue(ready_queues[process->priority], process);
     notify_dependent_processes(process);
@@ -525,12 +568,7 @@ void enqueue_in_ready(pcb *process) {
  * for the specified wait_for process.
  */
 void enqueue_in_waiters(pcb *process, pcb *wait_for) {
-    // TODO: can I just reuse enqueue function?
-    // Judging by my TEST 12, the answer is a big NO
-    // (because it messes with the next field and that 
-    // messes things up if a process is signaled while
-    // on another queue [i.e. senders, receivers, sleepers])
-
+    enqueue(&wait_for->waiter_queue, process);
 }
 
 
@@ -634,9 +672,10 @@ pcb *get_ready_queue(int priority) {
     return ready_queues[priority]->front_of_line;
 }
 
-/*
+
+/**
  * Print the state of the PCB.
- **/
+ */
 void print_pcb_state(pcb *process) {
     kprintf("pid: %d, state: %s ", process->pid,
             proc_state_str[process->state]);
@@ -826,4 +865,17 @@ void test_dispatcher(void) {
     ASSERT_INT_EQ(0, num_ready_processes());
 
     kprintf("Finished dispatcher tests!\n\n");
+}
+
+/**
+ * Wakes up any waiters (adds them to the ready queue)
+ */
+void wake_up_waiters(pcb_queue *waiter_queue) {
+    LOG("Waking up waiters\n");
+    pcb *cur = waiter_queue->front_of_line;
+    while (cur != NULL) {
+        cur->state = PROC_READY;
+        enqueue_in_ready(cur);
+        cur = cur->next;
+    }
 }

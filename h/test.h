@@ -28,6 +28,10 @@
 // This turns on the tests
 #define TESTING
 
+// Helper for including variadic args in macros
+#define VA_ARGS(...) , ##__VA_ARGS__
+
+
 /**
  * Stop the CPU by disabling interrupts and halting the CPU so whatever is
  * running can't be preempted.
@@ -100,7 +104,7 @@
     spaces[num_spaces > 0 ? num_spaces : 0] = 0;\
     strcat(info, spaces);\
     kprintf(info);\
-    kprintf(message, __VA_ARGS__);\
+    kprintf(message VA_ARGS(__VA_ARGS__));\
     kprintf("\n");\
     __asm __volatile("popf":::);\
 } while(0)
