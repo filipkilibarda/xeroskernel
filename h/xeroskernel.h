@@ -264,6 +264,7 @@ void create_idle_process(void);
 // user.c
 void root(void);
 void idleproc(void);
+void init_program(void);
 
 
 // syscall.c

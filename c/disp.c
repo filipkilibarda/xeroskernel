@@ -311,9 +311,11 @@ extern void dispatch(void) {
                 break;
             
             case SYSCALL_WAIT:
+            //LOG("Doing a syswait\n", NULL);
                 pid = *((PID_t *) (process->eip_ptr + 24));
                 valid_pid = is_valid_pid(pid);
                 if (valid_pid == -1 || pid == 0) {
+                    //LOG("Invalid pid: %d\n", pid);
                     process->ret_value = -1;
                     enqueue_in_ready(process);
                 }
@@ -321,12 +323,14 @@ extern void dispatch(void) {
                 // TODO: is this really not allowed? I assume so, 
                 // but it doesn't really specify 
                 else if (process->pid == pid) {
+                    //LOG("Waiting on self is not allowed\n", NULL);
                     process->ret_value = -1;
                     enqueue_in_ready(process);
                 }
                 else {
+                    //LOG("Blocking and puttting in waiters\n", NULL);
                     // Block process
-                    process->state = PROC_BLOCKED;
+                    process->state = PROC_BLOCKED; 
                     process->ret_value = 0;
                     // Add to queue of waiters
                     process->waiting_for = pid;
@@ -655,6 +659,7 @@ void enqueue_in_ready(pcb *process) {
  * for the specified wait_for process.
  */
 void enqueue_in_waiters(pcb *process, pcb *wait_for) {
+    //LOG("Putting into waiters\n", NULL);
     enqueue(&wait_for->waiter_queue, process);
 }
 

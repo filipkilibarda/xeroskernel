@@ -107,7 +107,7 @@ void _test_keyboard(void);
 int keyboard_open(PID_t pid) {
 
     if (is_locked()) {
-        LOG("Keyboard is already in use!");
+        LOG("Keyboard is already in use!, holding_pid is %d\n", holding_pid);
         return 0;
     }
 
@@ -126,7 +126,7 @@ int keyboard_open(PID_t pid) {
 int keyboard_open_echoing(PID_t pid) {
 
     if (is_locked()) {
-        LOG("Keyboard is already in use!");
+        LOG("Keyboard is already in use!, holding_pid is %d\n", holding_pid);
         return 0;
     }
 
@@ -145,7 +145,7 @@ int keyboard_open_echoing(PID_t pid) {
 int keyboard_close(void) {
     enable_irq(KEYBOARD_IRQ, 1);
     holding_pid = 0;
-    LOG("Keyboard closed!");
+    //LOG("Keyboard closed!");
     return 1;
 }
 
@@ -167,7 +167,7 @@ int keyboard_write(void *void_buff, unsigned int bufflen) {
  *       It should just know about buffers?
  */
 int keyboard_read(void *_buff, unsigned int bufflen) {
-    kprintf("In keyboard read, setting things up!\n");
+    //kprintf("In keyboard read, setting things up!\n");
     pcb *reading_process = get_pcb(holding_pid);
     ASSERT(reading_process != NULL, "did not get the process correctly\n");
     char *buff = (char *) _buff;
@@ -183,8 +183,8 @@ int keyboard_read(void *_buff, unsigned int bufflen) {
    
     // if num_read is less than bufflen, block the process 
     // and update the read_md struct to reflect # read so far
-    if (read_md.num_read < bufflen) {
-        kprintf("Blocking\n");
+    if (read_md.num_read < bufflen - 1) {
+        //kprintf("Blocking\n");
         reading_process->state = PROC_BLOCKED;
     } else {
         enqueue_in_ready(reading_process);
@@ -232,30 +232,14 @@ static void init_generic_keyboard(device_t *device, int (*opener)(PID_t)) {
 
 
 /**
- * Grab a character from the lower half buffer.
- * Called from the upper half.
- */
-static char get_char(void) {
-    return 0; // TODO
-}
-
-
-/**
  * Return 1 if the keyboard device is currently locked (in use by some process)
  * Return 0 otherwise.
  */
 static int is_locked(void) {
-    return holding_pid != 0;
+    if (holding_pid != 0) return 1;
+    return 0;
 }
 
-
-/**
- * Read up to bufflen bytes from the lower half and return how many bytes
- * were read.
- */
-static int read_from_lower_half(char *buff, unsigned int bufflen) {
-    return 0; // TODO
-}
 
 /**
  * Checks to see if there is a process blocked waiting
@@ -273,11 +257,14 @@ void notify_upper_half(void) {
         int result = 
         copy_from_kernel_buff(read_md.buff, read_md.bufflen, read_md.num_read);
         // if we've now read enough bytes into our buffer, add to ready
-        read_md.num_read += result;
-        kprintf("Num_read is: %d\n", read_md.num_read);
-        if (read_md.num_read == read_md.bufflen) {
-            kprintf("Enqueueing back, read enough!\n");
-            enqueue_in_ready(read_md.process);
+        if (result != -1) {
+            read_md.num_read += result;
+            //kprintf("Num_read is: %d\n", read_md.num_read);
+            if (read_md.num_read == read_md.bufflen - 1) {
+                //kprintf("Enqueueing back, read enough!\n");
+                read_md.buff[read_md.bufflen - 1] = '\0';
+                enqueue_in_ready(read_md.process);
+            }
         }
     }
 }
@@ -287,20 +274,28 @@ void notify_upper_half(void) {
  * provided buffer. 
  * 
  * Returns the number of bytes read into the buffer from
- * the kernel buffer.
+ * the kernel buffer, or -1 if enter was pressed. 
  */
 int copy_from_kernel_buff(char *buff, unsigned long bufflen, 
 unsigned long num_read) {
-    int num_to_copy = (bufflen - num_read < 4) ? 
-    bufflen - num_read : KEYBOARD_BUFFLEN;
+
     int bytes_read = 0;
 
-    for (int i = 0; i < num_to_copy; i++) {
+    for (int i = 0; i < KEYBOARD_BUFFLEN; i++) {
         if (kernel_buff[i] != NULL) {
-            buff[num_read + i] = kernel_buff[i];
+            if (kernel_buff[i] != 10) {
+                buff[num_read + i] = kernel_buff[i];
+                bytes_read++;
+            }
+            char copy = kernel_buff[i];
+            
             kernel_buff[i] = NULL;
-            bytes_read++;
-            //kprintf("Read a byte!\n");
+            if (copy == 10) {
+                read_md.buff[read_md.num_read + bytes_read] = '\0';
+                read_md.process->ret_value = read_md.num_read + bytes_read;
+                enqueue_in_ready(read_md.process);
+                return -1;
+            }
         } else {
             break;
         }
@@ -327,21 +322,23 @@ int data_available(void) {
  */
 void read_char(void) {
 
-    // Grab data from keyboard port
-    unsigned char data = inb(KEYBOARD_DATA_PORT);
+    if (data_available()) {
+        // Grab data from keyboard port
+        unsigned char data = inb(KEYBOARD_DATA_PORT);
 
-    // Convert character to ASCII
-    unsigned char ascii = convert_to_ascii(data);
-    
-    // If we're an echoing keyboard, we'll print 
-    if (echoing && ascii != NOCHAR) kprintf("%c", ascii);
+        // Convert character to ASCII
+        unsigned char ascii = convert_to_ascii(data);
+        
+        // If we're an echoing keyboard, we'll print 
+        if (echoing && ascii != NOCHAR) kprintf("%c", ascii);
 
-    // Put the ASCII character into the kernel buffer
-    if (ascii != NOCHAR) {
-        kprintf("Putting %c into the buffer\n", ascii);
-        put_in_buffer(ascii);
-        // Tells the upper half that data arrived in the buffer
-        notify_upper_half();
+        // Put the ASCII character into the kernel buffer
+        if (ascii != NOCHAR) {
+            //kprintf("Putting %c into the buffer\n", ascii);
+            put_in_buffer(ascii);
+            // Tells the upper half that data arrived in the buffer
+            notify_upper_half();
+        }
     }
 }
 

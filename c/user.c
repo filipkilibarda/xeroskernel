@@ -250,11 +250,30 @@ extern void idleproc(void) {
     for(;;);
 }
 
+
 /**
- * Returns 0 if user and pass is correct, else -1
+ * Returns 0 if user & password match the 
+ * correct user and password.
  */
-int verify_user(void *user, void *pass) {
-    // Stub
+int verify_user(char *user, char *pass) {
+    if (strcmp(user, "cs415") == 0 && 
+    strcmp(pass, "EveryonegetsanA") == 0) {
+        //kprintf("%s\n", pass);
+        return 0;
+    }
+
+    
+
+    return -1; 
+}
+
+/**
+ * Returns 0 if command does not exist, 
+ * 1 otherwise. 
+ */
+int does_command_exist(char *buff) {
+    // TODO: Should return indication 
+    // of whether command is valid. 
     return 0;
 }
 
@@ -262,33 +281,52 @@ int verify_user(void *user, void *pass) {
  * The shell program
  */
 void shell(void) {
-
+    int fd;
+    fd = sysopen(1);
+    PROMPT:
+    sysputs("\n");
+    sysputs(">");
+    char buff[60];
+    sysread(fd, buff, 60);
+    // execute buff command
+    int valid = does_command_exist(buff);
+    if (!valid) {
+        sysputs("Command not valid\n");
+        goto PROMPT;
+    }
+    goto PROMPT;
 }
 
 /**
  * The init program, as specified in A3
  */
 extern void init_program(void) {
+    kprintf("My pid is %d\n", sysgetpid());
     int fd;
     sysputs("===========================================\n");
     sysputs("Welcome to Xeros - a not so experimental OS\n");
     sysputs("===========================================\n");
-    // TODO: Put keyboard device number here
     START: 
-    // TODO: is this the correct device_number?
     fd = sysopen(1);
-    sysputs("Username:");
+    sysputs("\n");
+    sysputs("Username: ");
     // Allocate buffer to hold 'cs415' as username
-    void *user = kmalloc(6);
-    sysread(fd, user, 5);
-    // TODO: Turn keyboard echoing off here
-    sysputs("Password:");
-    // Allocate buffer to hold 'EveryonegetsanA' as password
-    void *pass = kmalloc(16);
-    sysread(fd, pass, 16);
+    char user[10];
+    sysread(fd, user, 10);
     sysclose(fd);
-    if (verify_user(user, pass) != 0) goto START;
+    fd = sysopen(0);
+    sysputs("Password: ");
+    // Allocate buffer to hold 'EveryonegetsanA' as password
+    char pass[25];
+    sysread(fd, pass, 25);
+    sysclose(fd);
+    if (verify_user(user, pass) == -1) goto START;
+    sysputs("\n");
+    sysputs("Successfully logged in, starting terminal...\n");
     PID_t shell_pid = syscreate(shell, DEFAULT_STACK_SIZE);
     syswait(shell_pid);
     goto START;
+    // LOG("Returned from syswait...\n", NULL);
+    // for(;;);
 } 
+

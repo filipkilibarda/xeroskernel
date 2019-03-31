@@ -37,7 +37,7 @@ int di_open(pcb *process, int device_no) {
         return -1;
 
     process->fdt[fd].device = device;
-    LOG("Opened device %d on fd %d", device_no, fd);
+    //LOG("Opened device %d on fd %d", device_no, fd);
     return fd;
 }
 

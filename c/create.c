@@ -42,7 +42,7 @@ extern int create(void (*func)(void), int stack_size) {
     pcb *process = setup_process(func, stack_size, DEFAULT_PRIORITY);
     if (process == NULL) return -1;
     enqueue_in_ready(process);
-    LOG("Created process %d", process->pid);
+    //LOG("Created process %d", process->pid);
     return process->pid;
 }
 

@@ -43,12 +43,12 @@ void initproc(void) {
     // Initialize memory layout
     kmeminit();
     kprintf("memory inited\n");
-    RUN_TEST(test_memory_manager);
+    //RUN_TEST(test_memory_manager);
 
     // Initialize PCB array
     pcb_init();
     kprintf("dispatcher inited\n");
-    RUN_TEST(test_dispatcher);
+    //RUN_TEST(test_dispatcher);
 
     // Test sleep functionality
     //test_sleep();
@@ -63,7 +63,7 @@ void initproc(void) {
     init_device_table();
 
     create_idle_process();
-    create(test_kb, DEFAULT_STACK_SIZE);
+    //create(test_kb, DEFAULT_STACK_SIZE);
     // Test IPC functionality
     //create(test_ipc, DEFAULT_STACK_SIZE);
     //create(test_signal, DEFAULT_STACK_SIZE);
@@ -72,6 +72,7 @@ void initproc(void) {
     //kprintf("Extended producer-consumer\n");
     //kprintf("==========================\n");
     //create(root, DEFAULT_STACK_SIZE);
+    create(init_program, DEFAULT_STACK_SIZE);
     
     // Call dispatcher to start running
     dispatch();
