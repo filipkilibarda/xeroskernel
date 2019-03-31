@@ -497,6 +497,8 @@ int kill(PID_t pid) {
     LOG("Killing process PID: %d", process->pid);
     free_process_memory(process);
     enqueue_in_stopped(process);
+    // Clean up any open devices
+    clean_up_devices(process);
 
     // Check if there were any processes waiting for this process to die
     wake_up_waiters(&process->waiter_queue);
@@ -506,6 +508,20 @@ int kill(PID_t pid) {
     LOG("Removing from IPC Queues", NULL);
     remove_from_ipc_queues(process);
     return 0;
+}
+
+
+/**
+ * Calls close on all devices open in FDT 
+ * of the specified process
+ */
+void clean_up_devices(pcb *process) {
+    fdt_entry_t *fdt = process->fdt;
+    for (int i = 0; i < MAX_OPEN_FILES; i++) {
+        if (fdt[i].device != NULL) {
+            fdt[i].device->close(i);
+        }
+    }
 }
 
 

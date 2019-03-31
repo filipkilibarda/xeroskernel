@@ -190,7 +190,7 @@ int keyboard_read(void *_buff, unsigned int bufflen) {
         enqueue_in_ready(reading_process);
     }
 
-    
+    return 0;
 }
 
 
@@ -308,6 +308,7 @@ unsigned long num_read) {
 
     return bytes_read;
 }
+
 
 /* ========================================================
  *                        Lower half
@@ -454,19 +455,17 @@ unsigned int convert_to_ascii(unsigned char code) {
 void reader_process(void) {
     kprintf("Opening non-echoing keyboard\n");
     int fd = sysopen(0);
-    char *buff = kmalloc(16);
+    char buff[16];
     kprintf("Doing a sysread\n");
     int result = sysread(fd, buff, 16);
-    kprintf("Printing what was typed!, starts with %c\n", buff[0]);
+    sysclose(fd);
+    kprintf("Printing what was typed!\n");
     sysputs(buff);
-    kfree(buff);
     return;
 }
 
 void test_kb(void) {
-    PID_t test_proc = syscreate(reader_process, DEFAULT_STACK_SIZE);
-    syswait(test_proc);
-    kprintf("Ending test!\n");
+    RUN_TEST(_test_keyboard);
 }
 
 /**
@@ -476,5 +475,7 @@ void _test_keyboard(void) {
     // TODO: Multiple attempts to open keyboard should fail
     // TODO: Attempt to open both keyboard devices should fail
     // TODO: Multiple processes opening keyboard, only one should succeed
-    
+    PID_t test_proc = syscreate(reader_process, DEFAULT_STACK_SIZE);
+    syswait(test_proc);
+    kprintf("Ending test!\n");
 }

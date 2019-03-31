@@ -253,6 +253,7 @@ void      dump_queues(void);
 void      validate_stopped_queue(void);
 void      enqueue_in_waiters(pcb *process, pcb *wait_for);
 void      wake_up_waiters(pcb_queue *waiter_queue);
+void      clean_up_devices(pcb *process);
 
 
 // create.c

@@ -59,8 +59,6 @@ int signal(PID_t pid, int signalNumber) {
     // Check if the process we want to signal is blocked
     if (process_to_signal->state == PROC_BLOCKED) {
         process_to_signal->state = PROC_READY;
-        // TODO: From assignment description, may be
-        // conditions where return value should be different?
         process_to_signal->ret_value = -666;
     }
 
