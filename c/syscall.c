@@ -234,7 +234,7 @@ int sysclose(int fd) {
  * - on failure, -1 
  */
 int syswrite(int fd, void *buff, unsigned int bufflen) {
-    return syscall(SYSCALL_WRITE, buff, bufflen);
+    return syscall(SYSCALL_WRITE, fd, buff, bufflen);
 }
 
 
@@ -247,7 +247,7 @@ int syswrite(int fd, void *buff, unsigned int bufflen) {
  * - otherwise, # of bytes read
  */
 int sysread(int fd, void *buff, unsigned int bufflen) {
-    return syscall(SYSCALL_READ, buff, bufflen);
+    return syscall(SYSCALL_READ, fd, buff, bufflen);
 }
 
 
@@ -261,7 +261,7 @@ int sysread(int fd, void *buff, unsigned int bufflen) {
 int sysioctl(int fd, unsigned long command, ...) {
     va_list ap; 
     va_start(ap, command);
-    int result = syscall(SYSCALL_IOCTL, command, ap);
+    int result = syscall(SYSCALL_IOCTL, fd, command, ap);
     va_end(ap);
     return result;
 }

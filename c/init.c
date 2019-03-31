@@ -66,7 +66,7 @@ void initproc(void) {
     create(test_keyboard, DEFAULT_STACK_SIZE);
     // Test IPC functionality
     //create(test_ipc, DEFAULT_STACK_SIZE);
-    create(test_signal, DEFAULT_STACK_SIZE);
+    //create(test_signal, DEFAULT_STACK_SIZE);
     //kprintf("\n");
     //kprintf("==========================\n");
     //kprintf("Extended producer-consumer\n");

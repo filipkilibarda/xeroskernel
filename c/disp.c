@@ -120,6 +120,7 @@ extern void dispatch(void) {
     va_list ap;
     unsigned long command;
     int character; 
+    unsigned char key; // used for testing keyboard raw scancodes/ASCII translation
 
 
     // Grab the first process to service
@@ -444,13 +445,10 @@ extern void dispatch(void) {
                 break;
 
             case KEYBOARD_INT:
-                LOG("Keyboard interrupt!");
-                // TODO: read_char() is just here temporarily b/c we need to
-                //  consume a byte from the keyboard before it'll accept more
-                //  interrupts.
-                read_char();
+                //LOG("Keyboard interrupt!");
+        
                 // Put keypress into kernel buffer, if possible
-
+                read_char();
                 // Notify upper half that key was put into buffer
                 // if there's a process(es?) blocked on a read, 
                 // copy info into their buffer, and unblock them 

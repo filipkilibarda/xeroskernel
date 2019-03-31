@@ -23,6 +23,17 @@
 
 void init_quiet_keyboard(device_t device_table[], int index);
 void init_echo_keyboard(device_t device_table[], int index);
-char read_char(void);
+void read_char(void);
+unsigned int convert_to_ascii(unsigned char code);
+void notify_upper_half(void);
+
+struct reader_metadata {
+    pcb *process;
+    char *buff;
+    unsigned long bufflen;
+    unsigned long num_read; 
+};
+
+typedef struct reader_metadata reader_metadata_t;
 
 #endif
