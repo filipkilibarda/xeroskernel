@@ -120,6 +120,7 @@ extern void dispatch(void) {
     va_list ap;
     unsigned long command;
     int character; 
+    int result;
     unsigned char key; // used for testing keyboard raw scancodes/ASCII translation
 
 
@@ -371,11 +372,10 @@ extern void dispatch(void) {
                 if (bufflen <= 0 || buff == NULL) process->ret_value = -1;
                 else if (fd < 0 || fd > 3) process->ret_value = -1;
                 else {
-                    bytes_read = di_read(process, fd, buff, bufflen);
-                    process->ret_value = bytes_read;
+                    di_read(process, fd, buff, bufflen);
                 }
 
-                enqueue_in_ready(process);
+                
                 process = dequeue_from_ready();
 
                 break;
@@ -628,8 +628,8 @@ pcb *dequeue_from_ready(void) {
 void enqueue_in_ready(pcb *process) {
     if (process->sending_to_pid || process->receiving_from_pid)
         FAIL("Bug. Ready processes should never have these fields set.");
-    if (process == idle_process)
-        FAIL("Bug. Idle process should never be enqueued!");
+    //if (process == idle_process)
+     //   FAIL("Bug. Idle process should never be enqueued!");
     process->state = PROC_READY;
     enqueue(ready_queues[process->priority], process);
 }

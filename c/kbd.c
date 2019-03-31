@@ -90,6 +90,7 @@ static int  read_from_lower_half(char *buff, unsigned int bufflen);
 void        put_in_buffer(unsigned char ascii);
 int         copy_from_kernel_buff(char *buff, unsigned long bufflen, 
 unsigned long num_read);
+void _test_keyboard(void);
 
 
 
@@ -166,27 +167,30 @@ int keyboard_write(void *void_buff, unsigned int bufflen) {
  *       It should just know about buffers?
  */
 int keyboard_read(void *_buff, unsigned int bufflen) {
+    kprintf("In keyboard read, setting things up!\n");
     pcb *reading_process = get_pcb(holding_pid);
+    ASSERT(reading_process != NULL, "did not get the process correctly\n");
     char *buff = (char *) _buff;
     read_md.process = reading_process;
     read_md.buff = buff;
     read_md.bufflen = bufflen;
     read_md.num_read = 0;
 
-    // if result is -1, there was nothing to read,
-    // block the process
-    int result = read_from_lower_half(buff, bufflen);
+    // result will indicate number of bytes read from kernel buffer
+    int result = 
+    copy_from_kernel_buff(read_md.buff, read_md.bufflen, read_md.num_read);    
     read_md.num_read += result;
    
     // if num_read is less than bufflen, block the process 
     // and update the read_md struct to reflect # read so far
     if (read_md.num_read < bufflen) {
+        kprintf("Blocking\n");
         reading_process->state = PROC_BLOCKED;
     } else {
         enqueue_in_ready(reading_process);
     }
 
-    return 0;
+    
 }
 
 
@@ -270,7 +274,9 @@ void notify_upper_half(void) {
         copy_from_kernel_buff(read_md.buff, read_md.bufflen, read_md.num_read);
         // if we've now read enough bytes into our buffer, add to ready
         read_md.num_read += result;
+        kprintf("Num_read is: %d\n", read_md.num_read);
         if (read_md.num_read == read_md.bufflen) {
+            kprintf("Enqueueing back, read enough!\n");
             enqueue_in_ready(read_md.process);
         }
     }
@@ -291,8 +297,10 @@ unsigned long num_read) {
 
     for (int i = 0; i < num_to_copy; i++) {
         if (kernel_buff[i] != NULL) {
-            buff[num_read - 1 + i] = kernel_buff[i];
+            buff[num_read + i] = kernel_buff[i];
+            kernel_buff[i] = NULL;
             bytes_read++;
+            //kprintf("Read a byte!\n");
         } else {
             break;
         }
@@ -328,10 +336,12 @@ void read_char(void) {
     if (echoing && ascii != NOCHAR) kprintf("%c", ascii);
 
     // Put the ASCII character into the kernel buffer
-    put_in_buffer(ascii);
-
-    // Tells the upper half that data arrived in the buffer
-    notify_upper_half();
+    if (ascii != NOCHAR) {
+        kprintf("Putting %c into the buffer\n", ascii);
+        put_in_buffer(ascii);
+        // Tells the upper half that data arrived in the buffer
+        notify_upper_half();
+    }
 }
 
 /**
@@ -340,7 +350,7 @@ void read_char(void) {
  */
 void put_in_buffer(unsigned char ascii) {
     for (int i = 0; i < KEYBOARD_BUFFLEN; i++) {
-        if (kernel_buff[i] != NULL) {
+        if (kernel_buff[i] == NULL) {
             kernel_buff[i] = ascii;
             break;
         }
@@ -440,6 +450,25 @@ unsigned int convert_to_ascii(unsigned char code) {
  *                        Tests
  * ======================================================== */
 
+
+void reader_process(void) {
+    kprintf("Opening non-echoing keyboard\n");
+    int fd = sysopen(0);
+    char *buff = kmalloc(16);
+    kprintf("Doing a sysread\n");
+    int result = sysread(fd, buff, 16);
+    kprintf("Printing what was typed!, starts with %c\n", buff[0]);
+    sysputs(buff);
+    kfree(buff);
+    return;
+}
+
+void test_kb(void) {
+    PID_t test_proc = syscreate(reader_process, DEFAULT_STACK_SIZE);
+    syswait(test_proc);
+    kprintf("Ending test!\n");
+}
+
 /**
  * Run some tests for the keyboard.
  */
@@ -447,4 +476,5 @@ void _test_keyboard(void) {
     // TODO: Multiple attempts to open keyboard should fail
     // TODO: Attempt to open both keyboard devices should fail
     // TODO: Multiple processes opening keyboard, only one should succeed
+    
 }
