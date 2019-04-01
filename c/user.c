@@ -267,6 +267,60 @@ int verify_user(char *user, char *pass) {
     return -1; 
 }
 
+/* =========
+ * BUILTINS
+ * =========
+ */
+
+/**
+ * Prints process statuses in system for 
+ * running/blocked processes. 
+ */
+void ps() {
+    sysputs("PID        STATE        UPTIME (ms)\n");
+    for (int i = 0; i < MAX_PCBS; i++) {
+        char status[20];
+        if (pcb_table[i].state != PROC_STOPPED) {
+            switch(pcb_table[i].state) {
+                case PROC_RUNNING:
+                    sprintf(status, "PROC_RUNNING");
+                    break;
+                case PROC_BLOCKED:
+                    sprintf(status, "PROC_BLOCKED");
+                    break;
+                // TODO: Add cases to distinguish blocked on I/O
+                // vs. blocked on wait
+            }
+            char buff[80];
+            char pid[20];
+            sprintf(pid, "%02d           ", pcb_table[i].pid);
+            strcat(buff, pid);
+            strcat(buff, status);
+            char ticks[50];
+            sprintf(ticks, "     %08d\n", pcb_table[i].num_ticks);
+            strcat(buff, ticks);
+            sysputs(buff);
+        }
+    }
+
+}
+
+void ex() {
+
+}
+
+void k() {
+
+}
+
+void t() {
+
+}
+
+void a() {
+
+}
+
 /**
  * Returns 0 if command does not exist, 
  * 1 otherwise. 
@@ -274,11 +328,48 @@ int verify_user(char *user, char *pass) {
 int does_command_exist(char *buff) {
     // TODO: Should return indication 
     // of whether command is valid. 
-    return 0;
+    if (strcmp(buff, "ps") == 0) return 0;
+    return -1;
 }
 
 /**
- * The shell program
+ * Executes the appropriate command 
+ * based off of the code passed to it 
+ * by does_command_exist. 
+ * 
+ * Codes:
+ * - 0 = ps
+ * - 1 = ex/EOF
+ * - 2 = k 
+ * - 3 = t
+ * - 4 = a
+ */
+void execute_command(int command, char *buff) {
+
+    switch(command) {
+        case 0: 
+            ps();
+            break;
+        default:
+            kprintf("Whoops\n");
+            break;
+            
+    }
+}
+
+/**
+ * The shell program.
+ * 
+ * Takes user input and executes valid commands. 
+ * Valid commands include:
+ * - ps
+ * - ex (or current EOF)
+ * - k 
+ * - t
+ * - a
+ * 
+ * If a command is invalid, a message indicating 
+ * this is displayed to the user. 
  */
 void shell(void) {
     int fd;
@@ -288,17 +379,25 @@ void shell(void) {
     sysputs(">");
     char buff[60];
     sysread(fd, buff, 60);
-    // execute buff command
-    int valid = does_command_exist(buff);
-    if (!valid) {
+    // Determine if buff command is valid
+    // if so, return value indicates which command
+    // it is. 
+    int command = does_command_exist(buff);
+    if (command == -1) {
         sysputs("Command not valid\n");
         goto PROMPT;
+    } else {
+        // Wrapper function to execute appropriate command
+        execute_command(command, buff);
     }
     goto PROMPT;
 }
 
 /**
  * The init program, as specified in A3
+ * Prompts user for a username and password. 
+ * If the username and password are correct, 
+ * starts the shell program. 
  */
 extern void init_program(void) {
     kprintf("My pid is %d\n", sysgetpid());
@@ -326,7 +425,5 @@ extern void init_program(void) {
     PID_t shell_pid = syscreate(shell, DEFAULT_STACK_SIZE);
     syswait(shell_pid);
     goto START;
-    // LOG("Returned from syswait...\n", NULL);
-    // for(;;);
 } 
 

@@ -172,31 +172,12 @@ struct device {
     int  (*read)(void *buff, unsigned int bufflen);
     int  (*write)(void *buff, unsigned int bufflen);
     int  (*ioctl)(int command, ...);
-    // TODO: Don't think we need the following stuff because we don't even
-    //  have the corresponding system calls available to the user.
-//    int  (*init)(void);
-//    int  (*seek)(void);
-//    int  (*getc)(void);
-//    int  (*putc)(void);
-//    int  (*cntl)(void);
-    // TODO: Don't think we need device name cause we're not mapping from
-    //  name->device_table_index anyway.
-//    char name[MAX_DEVICE_NAME_LEN];
     // TODO: Honestly, the way we're doing it, we don't even need the major num,
     //  just use the index of the device in the table as the major num. If we
     //  were thinking about making our OS more general then yeah we'd need
     //  it, but within the scope of this assignment we don't.
-//    int  major_num;
-    // TODO: Not sure what these are (taken from slides)
-//    void *csr;
-//    void *ivec;
-//    void *ovec;
-//    int  (*iint)(void);
-//    int  (*oint)(void);
-//    void *ioblk;
-    // TODO: The way I see it, there's no need for minor number for us?
-    //  What's the point of minor number anyway?
-//    int  minor_num;
+    //  I agree, we shouldn't need major number. 
+    //    int  major_num;
 };
 
 // TODO: Clarify w/ TAs if this struct should be exactly the same as

@@ -23,7 +23,6 @@
 
 void init_quiet_keyboard(device_t device_table[], int index);
 void init_echo_keyboard(device_t device_table[], int index);
-void read_char(void);
 unsigned int convert_to_ascii(unsigned char code);
 void notify_upper_half(void);
 
