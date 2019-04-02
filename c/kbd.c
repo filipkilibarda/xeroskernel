@@ -15,6 +15,7 @@
 #include <i386.h>
 #include <kbd.h>
 #include <test.h>
+#include <stdarg.h>
 
 #define KEY_UP   0x80            /* If this bit is on then it is a key   */
                                  /* up event instead of a key down event */
@@ -38,6 +39,7 @@
 
 static  int     state;       /* the state of the keyboard */
 static  int     echoing = 1; /* indicates if the keyboard is echoing or not*/
+static  int     eof_indicator; // TODO: Should use this everywhere I currently use '\0'
 
 // The pid that's currently holding the keyboard device
 // 0 if no process has opened the keyboard
@@ -190,8 +192,25 @@ int keyboard_read(void *_buff, unsigned int bufflen) {
 /**
  * Interface for non-standard interactions with the keyboard device.
  */
-int keyboard_ioctl(int command, ...) {
-    return 0; // TODO
+int keyboard_ioctl(int command, va_list ap) {
+    int new_eof;
+
+    switch(command) {
+        case 53:
+            new_eof = va_arg(ap, int);
+            eof_indicator = new_eof;
+            break;
+        case 55:
+            echoing = 0;
+            break;
+        case 56:
+            echoing = 1;
+            break;
+        default:
+            return -1;
+    }
+
+    return 0;
 }
 
 

@@ -1,3 +1,4 @@
+#include <stdarg.h>
 /* xeroskernel.h - disable, enable, halt, restore, isodd, min, max */
 
 #ifndef XEROSKERNEL_H
@@ -171,7 +172,7 @@ struct device {
     int  (*close)(int fd);
     int  (*read)(void *buff, unsigned int bufflen);
     int  (*write)(void *buff, unsigned int bufflen);
-    int  (*ioctl)(int command, ...);
+    int  (*ioctl)(int command, va_list ap);
     // TODO: Honestly, the way we're doing it, we don't even need the major num,
     //  just use the index of the device in the table as the major num. If we
     //  were thinking about making our OS more general then yeah we'd need
@@ -299,7 +300,7 @@ int di_open(pcb *process, int device_no);
 int di_close(pcb *process, int fd);
 int di_read(pcb *process, int fd, char *buff, unsigned int bufflen);
 int di_write(pcb *process, int fd, char *buff, unsigned int bufflen);
-int di_ioctl(pcb *process, int fd, ...);
+int di_ioctl(pcb *process, int fd, int command, va_list ap);
 
 
 // tests

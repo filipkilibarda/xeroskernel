@@ -118,7 +118,6 @@ extern void dispatch(void) {
     unsigned int bufflen;
     va_list ap;
     unsigned long command;
-    int character; 
 
 
     // Grab the first process to service
@@ -406,31 +405,11 @@ extern void dispatch(void) {
                 fd = GET_ARG(int, 0);
                 command = GET_ARG(unsigned long, sizeof(int));
                 ap = GET_ARG(va_list, sizeof(int) + sizeof(unsigned long));
-                character = va_arg(ap, int);
 
                 if (fd < 0 || fd > 3) process->ret_value = -1;
                
-                switch(command) {
-                    case 53: 
-                        if (character == NULL) process->ret_value = -1;
-                        else {
-                            process->ret_value = di_ioctl(process, fd, command, character);
-                        }
-                        break;
-
-                    case 55:
-                        process->ret_value = di_ioctl(process, fd, command);
-                        break;
-                        
-                    case 56:
-                        process->ret_value = di_ioctl(process, fd, command);
-                        break;
-
-                    default: 
-                        process->ret_value = -1;
-                        break;
-                    }
-
+                process->ret_value = di_ioctl(process, fd, command, ap);
+                   
                 enqueue_in_ready(process);
                 process = dequeue_from_ready();
 

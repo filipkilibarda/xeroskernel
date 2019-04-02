@@ -88,36 +88,13 @@ int di_write(pcb *process, int fd, char *buff, unsigned int bufflen) {
 /**
  * Performs device specific control function
  */
-int di_ioctl(pcb *process, int fd, ...) {
-    va_list ap;
-    va_start(ap, fd);
-    unsigned long command = va_arg(ap, unsigned long);
+int di_ioctl(pcb *process, int fd, int command, va_list ap) {
 
     if (!is_valid_fd(process, fd)) 
         return -1;
 
-    int result;
-    int character;
-    switch(command) {
-        case 53:
-            character = va_arg(ap, int);
-            result = process->fdt[fd].device->ioctl(command, character);
-            break;
-
-        case 55:
-            result = process->fdt[fd].device->ioctl(command);
-            break;
-
-        case 56:
-            result = process->fdt[fd].device->ioctl(command);
-            break;
-
-        default:
-            result = -1;
-            break;
-    }
-
-    va_end(ap);
+    int result = process->fdt[fd].device->ioctl(command, ap);
+         
     return result;
 }
 
