@@ -39,11 +39,6 @@
 static  int     state;       /* the state of the keyboard */
 static  int     echoing = 1; /* indicates if the keyboard is echoing or not*/
 
-// Buffer belonging to the process that's currently executing a sysread.
-// If no pending sysread, this is NULL;
-static char *user_buff;
-static char user_bufflen;
-
 // The pid that's currently holding the keyboard device
 // 0 if no process has opened the keyboard
 static PID_t holding_pid;
@@ -84,9 +79,7 @@ unsigned char   kbctl[] = { 0,
 
 
 static void init_generic_keyboard(device_t *device, int (*opener)(PID_t));
-static char get_char(void);
 static int  is_locked(void);
-static int  read_from_lower_half(char *buff, unsigned int bufflen);
 void        put_in_buffer(unsigned char ascii);
 int         copy_from_kernel_buff(char *buff, unsigned long bufflen, 
 unsigned long num_read);
@@ -454,7 +447,7 @@ void reader_process(void) {
     int fd = sysopen(0);
     char buff[16];
     kprintf("Doing a sysread\n");
-    int result = sysread(fd, buff, 16);
+    sysread(fd, buff, 16);
     sysclose(fd);
     kprintf("Printing what was typed!\n");
     sysputs(buff);

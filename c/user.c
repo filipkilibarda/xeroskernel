@@ -277,7 +277,7 @@ int verify_user(char *user, char *pass) {
  * Prints process statuses in system for 
  * running/blocked processes. 
  */
-void ps() {
+void ps(void) {
     char buff[100];
     process_statuses psTab;
     int procs = sysgetcputimes(&psTab);
@@ -294,8 +294,9 @@ void ps() {
 /**
  * Causes the shell to exit. 
  */
-void ex() {
-
+void ex(void) {
+    kprintf("Exiting...\n");
+    syskill(shell_pid, 31);
 }
 
 /**
@@ -326,8 +327,16 @@ void t_proc(void) {
  * Starts the t() process, which 
  * prints t on a new line every ~10 secs.
  */
-void t() {
+void t(void) {
     syscreate(t_proc, DEFAULT_STACK_SIZE);
+}
+
+
+/**
+ * Handler installed by the a() command.
+ */
+void alarm_handler(void * param) {
+    kprintf("ALARM, ALARM, ALARM\n");
 }
 
 /**
@@ -344,8 +353,16 @@ void t() {
  * background (0 = fg, 1 = bg) so shell can decide to 
  * do a syswait() or not. 
  */
+// TODO: The spec is confusing me 
 int a(int num_seconds, char *buff) {
+    funcptr_t *oldHandler = (funcptr_t *) kmalloc(sizeof(funcptr_t*));
+    syssighandler(18, alarm_handler, oldHandler);
+    syssleep(num_seconds);
+    syskill(sysgetpid(), 18);
+    syssighandler(18, NULL, oldHandler);
 
+    // stub
+    return 0;
 }
 
 
@@ -389,27 +406,26 @@ int get_numeric_arg(char *buff) {
  * 
  */
 void execute_command(int command, char *buff) {
-    char num[80];
     PID_t pid;
+    int milliseconds;
 
     switch(command) {
         case 0: 
             ps();
             break;
         case 1:
-            kprintf("ex command!\n");
             ex();
             break;
         case 2:
             pid = (PID_t) get_numeric_arg(buff);
-            kprintf("PID: %d\n", pid);
             k(pid);
             break;
         case 3:
             t();
             break;
         case 4: 
-            kprintf("a command!\n");
+            milliseconds = get_numeric_arg(buff);
+            a(milliseconds, buff);
             break;
             
     }
@@ -458,7 +474,6 @@ void shell(void) {
  * starts the shell program. 
  */
 extern void init_program(void) {
-    kprintf("My pid is %d\n", sysgetpid());
     int fd;
     sysputs("===========================================\n");
     sysputs("Welcome to Xeros - a not so experimental OS\n");
@@ -480,8 +495,7 @@ extern void init_program(void) {
     if (verify_user(user, pass) == -1) goto START;
     sysputs("\n");
     sysputs("Successfully logged in, starting terminal...\n");
-    PID_t shell_pid = syscreate(shell, DEFAULT_STACK_SIZE);
+    shell_pid = syscreate(shell, DEFAULT_STACK_SIZE);
     syswait(shell_pid);
     goto START;
 } 
-

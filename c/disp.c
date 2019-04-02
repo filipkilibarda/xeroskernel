@@ -111,7 +111,6 @@ extern void dispatch(void) {
     void *old_sp;                 // used in SYSCALL_SIGRETURN
     int kill_result;
     int old_ret_value;
-    int bytes_read;
     int bytes_written;
     int fd;
     unsigned int device_no;
@@ -120,8 +119,6 @@ extern void dispatch(void) {
     va_list ap;
     unsigned long command;
     int character; 
-    int result;
-    unsigned char key; // used for testing keyboard raw scancodes/ASCII translation
 
 
     // Grab the first process to service
@@ -850,33 +847,6 @@ void wait_for_free_pcbs(int num_pcbs) {
     LOG("Finished waiting for free pcbs (%d)", get_num_stopped_processes());
 }
 
-
-void dispps(void) {
-    for (int i = 0; i < MAX_PCBS; i++) {
-        char status[20];
-        if (pcb_table[i].state != PROC_STOPPED) {
-            switch(pcb_table[i].state) {
-                case PROC_RUNNING:
-                    sprintf(status, "PROC_RUNNING");
-                    break;
-                case PROC_BLOCKED:
-                    sprintf(status, "PROC_BLOCKED");
-                    break;
-                // TODO: Add cases to distinguish blocked on I/O
-                // vs. blocked on wait
-            }
-            char buff[80];
-            char pid[20];
-            sprintf(pid, "%02d           ", pcb_table[i].pid);
-            strcat(buff, pid);
-            strcat(buff, status);
-            char ticks[50];
-            sprintf(ticks, "     %08d\n", pcb_table[i].num_ticks);
-            strcat(buff, ticks);
-            sysputs(buff);
-        }
-    }
-}
 
 /**
  * This function is the system side of the sysgetcputimes call. It places into a

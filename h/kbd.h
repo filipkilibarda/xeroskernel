@@ -25,6 +25,7 @@ void init_quiet_keyboard(device_t device_table[], int index);
 void init_echo_keyboard(device_t device_table[], int index);
 unsigned int convert_to_ascii(unsigned char code);
 void notify_upper_half(void);
+void read_char(void);
 
 struct reader_metadata {
     pcb *process;
