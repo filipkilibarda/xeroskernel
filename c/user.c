@@ -16,6 +16,7 @@
 void wait_for_free_pcbs(int num_pcbs);
 static PID_t root_pid; // Stores root PID for message passing purposes
 static PID_t shell_pid; // used by a() to signal the shell. 
+int num_seconds;
 
 
 /**
@@ -336,7 +337,23 @@ void t(void) {
  * Handler installed by the a() command.
  */
 void alarm_handler(void * param) {
+    funcptr_t newHandler = NULL;
+    funcptr_t *oldHandler = (funcptr_t *) kmalloc(sizeof(funcptr_t));
     kprintf("ALARM, ALARM, ALARM\n");
+    syssighandler(18, newHandler, oldHandler);
+    kprintf("Disabled signal 18\n");
+    kfree(oldHandler);
+}
+
+/**
+ * The alarm process. Sleeps for 
+ * the specified number of seconds, 
+ * then sends a signal 18 to the shell. 
+ */
+void alarm_process(void) {
+    syssleep(num_seconds);
+    kprintf("Signaling shell\n");
+    syskill(shell_pid, 18);
 }
 
 /**
@@ -349,20 +366,15 @@ void alarm_handler(void * param) {
  * - Alarm process will sleep for the specified # of ticks, 
  * then sends a signal 18 to the shell 
  * 
- * Returns indication of whether to run in foreground or
- * background (0 = fg, 1 = bg) so shell can decide to 
- * do a syswait() or not. 
  */
-// TODO: The spec is confusing me 
-int a(int num_seconds, char *buff) {
+void a(int milliseconds, char *buff) {
     funcptr_t *oldHandler = (funcptr_t *) kmalloc(sizeof(funcptr_t*));
     syssighandler(18, alarm_handler, oldHandler);
-    syssleep(num_seconds);
-    syskill(sysgetpid(), 18);
-    syssighandler(18, NULL, oldHandler);
-
-    // stub
-    return 0;
+    num_seconds = milliseconds;
+    //TODO: if buff ends in &, run in background, else wait.
+    PID_t alarm = syscreate(alarm_process, DEFAULT_STACK_SIZE);
+    syswait(alarm);
+    kprintf("Done waiting for alarm process\n");
 }
 
 

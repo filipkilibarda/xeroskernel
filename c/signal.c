@@ -104,7 +104,7 @@ extern void sigtramp(void (*handler)(void *), void *context) {
     if (handler != NULL) {
         //kprintf("SIGTRAMP: Calling handler\n");
         handler(context);
-    }
+    } 
     // Rewind stack to point to old context, and 
     // restore previous return value.
     //kprintf("SIGTRAMP: Calling syssigreturn\n");

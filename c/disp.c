@@ -264,6 +264,7 @@ extern void dispatch(void) {
                 signalNumber = *((int *) (process->eip_ptr + 24));
                 newHandler = *((funcptr_t *) (process->eip_ptr + 28));
                 oldHandler = *((funcptr_t **) (process->eip_ptr + 32));
+         
                 // Check that signal number is valid
                 if (signalNumber < 0 || signalNumber > 30) process->ret_value = -1;
 
@@ -273,7 +274,7 @@ extern void dispatch(void) {
 
                 // Check that oldHandler is in valid memory space
                 else if (((int) oldHandler > HOLESTART && (int) oldHandler < HOLEEND)
-                || (int) oldHandler > END_OF_MEMORY) process->ret_value = -3;
+                || (int) oldHandler > END_OF_MEMORY || oldHandler == NULL) process->ret_value = -3;
 
                 else {
                     // At this point we're good, register new handler
@@ -281,6 +282,7 @@ extern void dispatch(void) {
                     *oldHandler = old_func;
                     process->sig_handlers[signalNumber] = newHandler;
                     process->ret_value = 0;
+                    kprintf("Successfully registered new handler!\n");
                 }
 
                 enqueue_in_ready(process);
