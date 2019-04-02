@@ -15,6 +15,7 @@
 
 void wait_for_free_pcbs(int num_pcbs);
 static PID_t root_pid; // Stores root PID for message passing purposes
+static PID_t shell_pid; // used by a() to signal the shell. 
 
 
 /**
@@ -277,65 +278,81 @@ int verify_user(char *user, char *pass) {
  * running/blocked processes. 
  */
 void ps() {
-    sysputs("PID        STATE        UPTIME (ms)\n");
-    for (int i = 0; i < MAX_PCBS; i++) {
-        char status[20];
-        if (pcb_table[i].state != PROC_STOPPED) {
-            switch(pcb_table[i].state) {
-                case PROC_RUNNING:
-                    sprintf(status, "PROC_RUNNING");
-                    break;
-                case PROC_BLOCKED:
-                    sprintf(status, "PROC_BLOCKED");
-                    break;
-                // TODO: Add cases to distinguish blocked on I/O
-                // vs. blocked on wait
-            }
-            char buff[80];
-            char pid[20];
-            sprintf(pid, "%02d           ", pcb_table[i].pid);
-            strcat(buff, pid);
-            strcat(buff, status);
-            char ticks[50];
-            sprintf(ticks, "     %08d\n", pcb_table[i].num_ticks);
-            strcat(buff, ticks);
-            sysputs(buff);
-        }
-    }
+    char buff[100];
+    process_statuses psTab;
+    int procs = sysgetcputimes(&psTab);
+
+    sysputs("  PID    STATE      UPTIME (ms)\n");
+    for (int i = 0; i <= procs; i++) {
+        sprintf(buff, "%4d    %4d    %10d\n", psTab.pid[i], psTab.status[i], 
+        psTab.cpu_time[i]);
+        kprintf(buff);
+    }    
 
 }
 
+/**
+ * Causes the shell to exit. 
+ */
 void ex() {
 
 }
 
-void k() {
-
-}
-
-void t() {
-
-}
-
-void a() {
-
-}
-
 /**
- * Returns 0 if command does not exist, 
- * 1 otherwise. 
+ * Kills the process with specified PID, 
+ * otherwise prints "No such process" if 
+ * PID does not exist.
  */
-int does_command_exist(char *buff) {
-    // TODO: Should return indication 
-    // of whether command is valid. 
-    if (strcmp(buff, "ps") == 0) return 0;
-    return -1;
+void k(PID_t pid) {
+    // TODO: this will try to kill process that exists but is stopped. 
+    // Need to ensure process is blocked/running before we send signal!
+    if (is_valid_pid(pid) == -1)
+        kprintf("No such process\n");
+    else {
+        kprintf("Killing pid %d...\n", pid);
+        syskill(pid, 31);
+    }
+}
+
+// The t process.
+void t_proc(void) {
+    while(1) {
+        kprintf("t\n");
+        syssleep(9000);
+    }
 }
 
 /**
- * Executes the appropriate command 
- * based off of the code passed to it 
- * by does_command_exist. 
+ * Starts the t() process, which 
+ * prints t on a new line every ~10 secs.
+ */
+void t() {
+    syscreate(t_proc, DEFAULT_STACK_SIZE);
+}
+
+/**
+ * Takes # seconds before a signal 18 is sent as parameter
+ * - Installs a handler that prints "ALARM, ALARM, ALARM", 
+ * - Disables signal 18 once alarm has been delivered
+ * - if command line ends w/&, shell will run the process
+ * in the background, otherwise it waits for the process to 
+ * terminate. 
+ * - Alarm process will sleep for the specified # of ticks, 
+ * then sends a signal 18 to the shell 
+ * 
+ * Returns indication of whether to run in foreground or
+ * background (0 = fg, 1 = bg) so shell can decide to 
+ * do a syswait() or not. 
+ */
+int a(int num_seconds, char *buff) {
+
+}
+
+
+/**
+ * Returns -1 if command does not exist, 
+ * otherwise a code in the range 0-4 inclusive
+ * indicating which command it is. 
  * 
  * Codes:
  * - 0 = ps
@@ -344,14 +361,55 @@ int does_command_exist(char *buff) {
  * - 3 = t
  * - 4 = a
  */
+int does_command_exist(char *buff) {
+
+    if (strcmp(buff, "ps") == 0) return 0;
+    // TODO: Add check for EOF indicator as command for ex
+    else if (strcmp(buff, "ex") == 0) return 1;
+    else if (strncmp(buff, "k ", 2) == 0) return 2;
+    else if (strcmp(buff, "t") == 0) return 3;
+    else if (strncmp(buff, "a ", 2) == 0) return 4;
+
+    return -1;
+}
+
+/**
+ * Returns the numeric component of the command typed.  
+ */
+int get_numeric_arg(char *buff) {
+    buff += 2;
+    int result = atoi(buff);
+    return result;
+}
+
+/**
+ * Executes the appropriate command 
+ * based off of the code passed to it 
+ * by does_command_exist. 
+ * 
+ */
 void execute_command(int command, char *buff) {
+    char num[80];
+    PID_t pid;
 
     switch(command) {
         case 0: 
             ps();
             break;
-        default:
-            kprintf("Whoops\n");
+        case 1:
+            kprintf("ex command!\n");
+            ex();
+            break;
+        case 2:
+            pid = (PID_t) get_numeric_arg(buff);
+            kprintf("PID: %d\n", pid);
+            k(pid);
+            break;
+        case 3:
+            t();
+            break;
+        case 4: 
+            kprintf("a command!\n");
             break;
             
     }

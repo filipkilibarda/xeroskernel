@@ -102,12 +102,12 @@ int signal(PID_t pid, int signalNumber) {
  **/ 
 extern void sigtramp(void (*handler)(void *), void *context) {
     if (handler != NULL) {
-        kprintf("SIGTRAMP: Calling handler\n");
+        //kprintf("SIGTRAMP: Calling handler\n");
         handler(context);
     }
     // Rewind stack to point to old context, and 
     // restore previous return value.
-    kprintf("SIGTRAMP: Calling syssigreturn\n");
+    //kprintf("SIGTRAMP: Calling syssigreturn\n");
     syssigreturn(context);
 }
 

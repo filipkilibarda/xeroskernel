@@ -102,7 +102,7 @@ void tick() {
             }
             // For this assignment we never wake up early
             cur->ret_value = 0;
-            LOG("Finished sleeping %d.", cur->pid);
+            //LOG("Finished sleeping %d.", cur->pid);
             enqueue_in_ready(cur);
         }
         prev = cur;
@@ -119,7 +119,7 @@ void pull_from_sleep_list(pcb *process) {
     pcb *prev = NULL;
     while (cur != NULL) {
         if (cur == process) {
-            LOG("Pulling pid %d from sleep list", cur->pid);
+            //LOG("Pulling pid %d from sleep list", cur->pid);
             if (prev == NULL) {
                 sleep_delta_list = cur->next;
             } else {

@@ -196,8 +196,10 @@ extern void dispatch(void) {
                     process_pcb->sending_to_pid = NULL;
                     notify_dependent_processes(process_pcb);
                     remove_from_ipc_queues(process_pcb);
+                    //LOG("Pulling from sleep list\n", NULL);
                     pull_from_sleep_list(process_pcb);
                     enqueue_in_ready(process_pcb);
+                    signal(pid, signalNumber);
                 }
 
                 // Determine if signalNumber is valid
@@ -205,7 +207,7 @@ extern void dispatch(void) {
                 process->ret_value = -583;
                 
                 else {
-                    LOG("SIGNALING\n", NULL);
+                    //LOG("SIGNALING\n", NULL);
                     signal(pid, signalNumber);
                     process->ret_value = 0; // Considered success
                 }
@@ -342,7 +344,7 @@ extern void dispatch(void) {
                 break;
 
             case SYSCALL_GET_CPU_TIMES:
-                proc_stats = (process_statuses *)(process->eip_ptr + 24);
+                proc_stats = *((process_statuses **)(process->eip_ptr + 24));
                 process->ret_value = get_cpu_times(proc_stats);
                 enqueue_in_ready(process);
                 process = dequeue_from_ready();
@@ -459,7 +461,8 @@ extern void dispatch(void) {
                 // (if # of bytes read is sufficient now)
                 
                 end_of_intr();
-                enqueue_in_ready(process);
+                if (process != idle_process)
+                    enqueue_in_ready(process);
                 process = dequeue_from_ready();
                 break;
 
@@ -498,7 +501,7 @@ int kill(PID_t pid) {
     // Can't kill a stopped process.
     if (is_stopped(process)) return -1;
 
-    LOG("Killing process PID: %d", process->pid);
+    //LOG("Killing process PID: %d", process->pid);
     free_process_memory(process);
     enqueue_in_stopped(process);
     // Clean up any open devices
@@ -509,7 +512,7 @@ int kill(PID_t pid) {
 
     pull_from_queue(ready_queues[process->priority], process);
     notify_dependent_processes(process);
-    LOG("Removing from IPC Queues", NULL);
+    //LOG("Removing from IPC Queues", NULL);
     remove_from_ipc_queues(process);
     return 0;
 }
@@ -648,8 +651,8 @@ pcb *dequeue_from_ready(void) {
 void enqueue_in_ready(pcb *process) {
     if (process->sending_to_pid || process->receiving_from_pid)
         FAIL("Bug. Ready processes should never have these fields set.");
-    //if (process == idle_process)
-     //   FAIL("Bug. Idle process should never be enqueued!");
+    if (process == idle_process)
+        FAIL("Bug. Idle process should never be enqueued!");
     process->state = PROC_READY;
     enqueue(ready_queues[process->priority], process);
 }
@@ -848,6 +851,33 @@ void wait_for_free_pcbs(int num_pcbs) {
 }
 
 
+void dispps(void) {
+    for (int i = 0; i < MAX_PCBS; i++) {
+        char status[20];
+        if (pcb_table[i].state != PROC_STOPPED) {
+            switch(pcb_table[i].state) {
+                case PROC_RUNNING:
+                    sprintf(status, "PROC_RUNNING");
+                    break;
+                case PROC_BLOCKED:
+                    sprintf(status, "PROC_BLOCKED");
+                    break;
+                // TODO: Add cases to distinguish blocked on I/O
+                // vs. blocked on wait
+            }
+            char buff[80];
+            char pid[20];
+            sprintf(pid, "%02d           ", pcb_table[i].pid);
+            strcat(buff, pid);
+            strcat(buff, status);
+            char ticks[50];
+            sprintf(ticks, "     %08d\n", pcb_table[i].num_ticks);
+            strcat(buff, ticks);
+            sysputs(buff);
+        }
+    }
+}
+
 /**
  * This function is the system side of the sysgetcputimes call. It places into a
  * the structure being pointed to information about each currently active
@@ -871,6 +901,7 @@ int get_cpu_times(process_statuses *proc_stats) {
 
     if (in_hole(ptr) || in_hole(ptr_end))
         return -1;
+  
 
     // TODO: In the solution given to us, they only check that the address
     //  doesn't go beyond main memory. They don't check that the address
@@ -878,7 +909,8 @@ int get_cpu_times(process_statuses *proc_stats) {
     //  space pointers into system calls, so I'm going to put that check here.
     if (!within_memory_bounds(ptr) || !within_memory_bounds(ptr_end))
         return -2;
-
+    
+  
     current_slot = -1;
     for (int i = 0; i < MAX_PCBS; i++) {
         if (is_stopped(&pcb_table[i])) continue;
@@ -889,7 +921,6 @@ int get_cpu_times(process_statuses *proc_stats) {
         proc_stats->cpu_time[current_slot] =
                 pcb_table[i].num_ticks * TICK_MILLISECONDS;
     }
-
     proc_stats->length = current_slot + 1;
     return current_slot;
 }
@@ -963,7 +994,7 @@ void test_dispatcher(void) {
  * Wakes up any waiters (adds them to the ready queue)
  */
 void wake_up_waiters(pcb_queue *waiter_queue) {
-    LOG("Waking up waiters\n");
+    //LOG("Waking up waiters\n");
     pcb *cur = waiter_queue->front_of_line;
     while (cur != NULL) {
         cur->state = PROC_READY;
