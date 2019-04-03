@@ -50,6 +50,7 @@ int di_close(pcb *process, int fd) {
     if (!is_valid_fd(process, fd)) return -1;
     
     device_t *device = process->fdt[fd].device;
+    // TODO: Can simplify this a bit
     int result = device->close(fd);
     if (result == -1) return -1;
     

@@ -19,6 +19,7 @@ extern char	*maxaddr;	/* max memory address (set in i386.c)	*/
 device_t device_table[MAX_DEVICES]; // Initialize the device table.
 
 static void init_device_table(void);
+static void run_test_processes(void);
 
 /************************************************************************/
 /***				             NOTE:				                  ***/
@@ -38,7 +39,7 @@ void initproc(void) {
 
     kprintf("\n\nCPSC 415, 2018W2 \n32 Bit Xeros -21.0.0 - "
             "even before beta \nLocated at: %x to %x\n",
-             &entry, &end);
+            &entry, &end);
 
     // Initialize memory layout
     kmeminit();
@@ -63,15 +64,7 @@ void initproc(void) {
     init_device_table();
 
     create_idle_process();
-    //create(test_kb, DEFAULT_STACK_SIZE);
-    // Test IPC functionality
-    //create(test_ipc, DEFAULT_STACK_SIZE);
-    //create(test_signal, DEFAULT_STACK_SIZE);
-    //kprintf("\n");
-    //kprintf("==========================\n");
-    //kprintf("Extended producer-consumer\n");
-    //kprintf("==========================\n");
-    //create(root, DEFAULT_STACK_SIZE);
+
     create(init_program, DEFAULT_STACK_SIZE);
     
     // Call dispatcher to start running
@@ -89,4 +82,22 @@ void initproc(void) {
 static void init_device_table(void) {
     init_quiet_keyboard(device_table, 0);
     init_echo_keyboard(device_table, 1);
+}
+
+
+/**
+ * To be run upon kernel initialization.
+ *
+ * Runs several test processes one by one.
+ */
+static void run_test_processes(void) {
+    //create(test_kb, DEFAULT_STACK_SIZE);
+    // Test IPC functionality
+    //create(test_ipc, DEFAULT_STACK_SIZE);
+    //create(test_signal, DEFAULT_STACK_SIZE);
+    //kprintf("\n");
+    //kprintf("==========================\n");
+    //kprintf("Extended producer-consumer\n");
+    //kprintf("==========================\n");
+    //create(root, DEFAULT_STACK_SIZE);
 }

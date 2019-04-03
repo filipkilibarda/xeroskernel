@@ -39,7 +39,8 @@
 
 static  int     state;       /* the state of the keyboard */
 static  int     echoing = 1; /* indicates if the keyboard is echoing or not*/
-static  int     eof_indicator; // TODO: Should use this everywhere I currently use '\0'
+// TODO: Should use this everywhere I currently use '\0'
+static  int     eof_indicator;
 
 // The pid that's currently holding the keyboard device
 // 0 if no process has opened the keyboard
@@ -119,6 +120,7 @@ int keyboard_open(PID_t pid) {
  * Return 1 otherwise.
  */
 int keyboard_open_echoing(PID_t pid) {
+    // TODO: Unnecessarily duplicated code, just call keyboard_open above
 
     if (is_locked()) {
         LOG("Keyboard is already in use!, holding_pid is %d\n", holding_pid);
@@ -172,8 +174,8 @@ int keyboard_read(void *_buff, unsigned int bufflen) {
     read_md.num_read = 0;
 
     // result will indicate number of bytes read from kernel buffer
-    int result = 
-    copy_from_kernel_buff(read_md.buff, read_md.bufflen, read_md.num_read);    
+    int result = copy_from_kernel_buff(
+            read_md.buff, read_md.bufflen, read_md.num_read);
     read_md.num_read += result;
    
     // if num_read is less than bufflen, block the process 
@@ -196,7 +198,9 @@ int keyboard_ioctl(int command, va_list ap) {
     int new_eof;
 
     switch(command) {
+        // TODO: Unhardcode the numbers here. Use define statements
         case 53:
+            // TODO: Figure out how va_arg works
             new_eof = va_arg(ap, int);
             eof_indicator = new_eof;
             break;
@@ -306,6 +310,7 @@ unsigned long num_read) {
                 read_md.buff[read_md.num_read + bytes_read] = '\0';
                 read_md.process->ret_value = read_md.num_read + bytes_read;
                 enqueue_in_ready(read_md.process);
+                // TODO: Clear the read meta data?
                 return -1;
             }
         } else {
@@ -341,7 +346,9 @@ void read_char(void) {
         // Convert character to ASCII
         unsigned char ascii = convert_to_ascii(data);
         
-        // If we're an echoing keyboard, we'll print 
+        // If we're an echoing keyboard, we'll print
+        // TODO: What is NOCHAR? Maybe we should print just the byte repr of
+        //  the char?
         if (echoing && ascii != NOCHAR) kprintf("%c", ascii);
 
         // Put the ASCII character into the kernel buffer
@@ -360,6 +367,9 @@ void read_char(void) {
  */
 void put_in_buffer(unsigned char ascii) {
     for (int i = 0; i < KEYBOARD_BUFFLEN; i++) {
+        // TODO: This is bad?
+        //  1) loop over buffer everytime
+        //  2) NULL char is special here. Should it be?
         if (kernel_buff[i] == NULL) {
             kernel_buff[i] = ascii;
             break;
