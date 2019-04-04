@@ -105,7 +105,6 @@ pcb *setup_process(void (*func)(void), int stack_size, int priority) {
     free_pcb->num_ticks = 0;
     free_pcb->sig_mask = (unsigned long) 0x00000000;
     free_pcb->sig_prio = -1; // No signals have been sent, so no priority set.
-    free_pcb->waiting_for = 0;
 
     // Setup a file descriptor table for this process.
     fdt_constructor(free_pcb->fdt);

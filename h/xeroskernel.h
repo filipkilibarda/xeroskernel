@@ -158,7 +158,6 @@ struct pcb_s {
     pcb_queue receiver_queue; // pcbs wanting to recv from this.
     PID_t receiving_from_pid; // PID that this is blocked receiving from.
     PID_t sending_to_pid;     // PID that this is blocked sending to.
-    PID_t waiting_for;
     void *sig_handlers[MAX_SIGNALS];
     unsigned long sig_mask;
     int sig_prio;             // Current highest priority signal
@@ -274,6 +273,7 @@ int          syswrite(int fd, void *buff, unsigned int bufflen);
 int          sysread(int fd, void *buff, unsigned int bufflen);
 int          sysioctl(int fd, unsigned long command, ...);
 int          sysgetcputimes(process_statuses *proc_stats);
+void         wait(pcb *process, PID_t pid);
 
 
 // msg.c

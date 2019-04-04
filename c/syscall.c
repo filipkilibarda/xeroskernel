@@ -265,3 +265,42 @@ int sysioctl(int fd, unsigned long command, ...) {
     va_end(ap);
     return result;
 }
+
+
+/* ==========================================================================
+ *           Kernel side implementations of some system calls
+ * ========================================================================== */
+
+/**
+ * Implementation of syswait.
+ *
+ * Blocks the given process until the process with given PID dies.
+ *
+ * Otherwise, enqueues the given process back into the ready queue.
+ */
+void wait(pcb *process, PID_t pid) {
+    LOG("Starting syswait %d waiting on %d", process->pid, pid);
+
+    // The process we're waiting on
+    pcb *other_process = get_active_pcb(pid);
+
+    if (!other_process) {
+        process->ret_value = -1;
+        enqueue_in_ready(process);
+
+    } else if (process->pid == pid) {
+        // TODO: is this really not allowed? I assume so,
+        //  but it doesn't really specify
+        LOG("Waiting on self is not allowed");
+        process->ret_value = -1;
+        enqueue_in_ready(process);
+
+    } else {
+        LOG("Blocking %d waiting on %d", process->pid, pid);
+        // Block process
+        process->state = PROC_BLOCKED;
+        process->ret_value = 0;
+        // Add to queue of waiters
+        enqueue_in_waiters(process, other_process);
+    }
+}

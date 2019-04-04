@@ -117,8 +117,6 @@ extern void dispatch(void) {
     va_list ap;
     unsigned long command;
     int result;
-    pcb *other_process;           // used in SYSCALL_WAIT
-
 
     // Grab the first process to service
     pcb *process = dequeue_from_ready();
@@ -272,36 +270,9 @@ extern void dispatch(void) {
                 break;
             
             case SYSCALL_WAIT:
-                // TODO: Put all this in a helper func
                 pid = GET_ARG(PID_t, 0);
-                LOG("Starting syswait %d waiting on %d", process->pid, pid);
-
-                // The process we're waiting on
-                other_process = get_active_pcb(pid);
-
-                if (!other_process) {
-                    process->ret_value = -1;
-                    enqueue_in_ready(process);
-
-                } else if (process->pid == pid) {
-                    // TODO: is this really not allowed? I assume so,
-                    //  but it doesn't really specify
-                    LOG("Waiting on self is not allowed");
-                    process->ret_value = -1;
-                    enqueue_in_ready(process);
-
-                } else {
-                    LOG("Blocking %d", process->pid);
-                    // Block process
-                    process->state = PROC_BLOCKED; 
-                    process->ret_value = 0;
-                    // Add to queue of waiters
-                    process->waiting_for = pid;
-                    enqueue_in_waiters(process, other_process);
-                }
-
+                wait(process, pid);
                 process = dequeue_from_ready();
-
                 break;
 
             case SYSCALL_GET_CPU_TIMES:
@@ -455,6 +426,7 @@ int stop_process(PID_t pid) {
     clean_up_devices(process);
 
     // Check if there were any processes waiting for this process to die
+    // TODO: This should go in notify_dependent_processes
     wake_up_waiters(&process->waiter_queue);
 
     pull_from_queue(ready_queues[process->priority], process);
