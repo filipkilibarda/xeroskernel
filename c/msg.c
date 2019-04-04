@@ -339,8 +339,17 @@ void _test_ipc(void) {
     ASSERT(queue_is_empty(&receive_any_queue), "Queue should be empty.");
     ASSERT_INT_EQ(-2, syssend(receiver_pid, MSG));
 
-    // Many receivers blocked on one process
-    // =====================================
+    // Ensure all pcbs in prev. tests are stopped.
+    wait_for_free_pcbs(num_stopped_processes);
+
+    // TODO: If you comment out all the following *tests* then the assertions
+    //  at the end should fail with "expect empty queue" for the stopped queue.
+    //  Make sure to check this.
+
+    /* ================================================= */
+    LOG("=== Many receivers blocked on one process ===");
+    /* ================================================= */
+
     PID_t r1 = create(receiver2, DEFAULT_STACK_SIZE);
     PID_t r2 = create(receiver2, DEFAULT_STACK_SIZE);
     PID_t r3 = create(receiver2, DEFAULT_STACK_SIZE);

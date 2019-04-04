@@ -813,9 +813,11 @@ void print_queue(pcb_queue *queue) {
     pcb *cur = queue->front_of_line;
     if (queue->front_of_line == NULL) kprintf("Empty queue\n");
     while (cur != NULL) {
-        print_pcb_state(cur);
+//        print_pcb_state(cur);
+        kprintf("->%d", cur->pid);
         cur = cur->next;
     }
+    kprintf("\n");
 }
 
 
@@ -897,7 +899,7 @@ void wait_for_free_pcbs(int num_pcbs) {
         sysyield();
     }
     if (i >= max_yields) {
-        print_pcb_table();
+        print_stopped_queue();
         FAILL("Took too long waiting for %d free pcbs", num_pcbs);
     }
     LOG("Finished waiting for free pcbs (%d)", get_num_stopped_processes());
