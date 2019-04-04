@@ -144,7 +144,7 @@ extern void dispatch(void) {
                 break;
 
             case SYSCALL_STOP:
-                kill_result = kill(process->pid);
+                kill_result = stop_process(process->pid);
                 if (kill_result != 0) {
                     FAIL("Should always be able to kill this process.");
                 }
@@ -171,64 +171,11 @@ extern void dispatch(void) {
                 break;
 
             case SYSCALL_KILL:
-                // TODO: Put all this in a helper function.
-                // Obtain PID to send signal, and signalNumber
                 pid = GET_ARG(PID_t, 0);
                 signalNumber = GET_ARG(int, sizeof(PID_t));
-
-                LOG("Attempting signal #%d %d->%d",
-                    signalNumber, process->pid, pid);
-
-                // Make sure pid to send to exists
-                // TODO: receiving_process might be a nicer name? more clear
-                pcb *process_pcb = get_active_pcb(pid);
-                if (!process_pcb || process_pcb->state == PROC_STOPPED)
-                    process->ret_value = -514;
-
-                // If process to signal is blocked, set its return value to
-                // -666, unless it is sleeping
-                else if (process_pcb->state == PROC_BLOCKED) {
-
-                    LOG("Signaling blocked process #%d %d->%d",
-                        signalNumber, process->pid, pid);
-
-                    if (on_sleeper_queue(process_pcb) == -1)
-                        process_pcb->ret_value = -666;
-
-                    // TODO: No need to change the state, enqueue_in_ready
-                    //  does that?
-                    process_pcb->state = PROC_READY;
-                    process_pcb->receiving_from_pid = NULL;
-                    process_pcb->sending_to_pid = NULL;
-                    // Pull from any blocked queues process could be on,
-                    // and notify any processes that might be waiting on this
-                    // process.
-                    // TODO: notify_dependent_processes is used to notify
-                    //  dependent processes that the given process has died.
-                    //  That is not the case here?
-                    notify_dependent_processes(process_pcb);
-                    remove_from_ipc_queues(process_pcb);
-
-                    LOG("Pulling from sleep list");
-                    pull_from_sleep_list(process_pcb);
-                    enqueue_in_ready(process_pcb);
-                    signal(pid, signalNumber);
-                    process->ret_value = 0; // Considered success
-                }
-                // Determine if signalNumber is valid
-                // TODO: un-hardcode this
-                else if (signalNumber < 0 || signalNumber > 31) {
-                    process->ret_value = -583;
-                } else {
-                    LOG("Successful signal #%d %d->%d",
-                            signalNumber, process->pid, pid);
-                    signal(pid, signalNumber);
-                    process->ret_value = 0; // Considered success
-                }
-
+                process->ret_value = kill(pid, signalNumber);
                 enqueue_in_ready(process);
                 process = dequeue_from_ready();
-
                 break;
 
             case SYSCALL_SET_PRIO:
@@ -285,6 +232,9 @@ extern void dispatch(void) {
                 oldHandler = GET_ARG(funcptr_t *, sizeof(funcptr_t) + sizeof(int));
          
                 // Check that signal number is valid
+                // TODO: Un-hardcode this, but also make sure that whatever
+                //  you do still makes sure the user is not trying to
+                //  override signal 31
                 if (signalNumber < 0 || signalNumber > 30) process->ret_value = -1;
 
                 // Check that newHandler is in valid memory space
@@ -496,14 +446,14 @@ void free_process_memory(pcb *process) {
 
 
 /**
- * Kill the process with the given pid. Note, this will add the PCB to the
+ * Stop the process with the given pid. Note, this will add the PCB to the
  * stopped queue and remove it from the ready queue, even if it's not at the
  * front of the ready queue.
  *
- * This will kill any process you ask it to no matter what it was doing or
+ * This will stop any process you ask it to no matter what it was doing or
  * what system call it made.
  **/
-int kill(PID_t pid) {
+int stop_process(PID_t pid) {
     pcb *process = get_active_pcb(pid);
     // Process with given PID doesn't exist
     if (!process) return -1;
@@ -520,7 +470,7 @@ int kill(PID_t pid) {
     pull_from_queue(ready_queues[process->priority], process);
     notify_dependent_processes(process);
     //LOG("Removing from IPC Queues", NULL);
-    remove_from_ipc_queues(process);
+    clear_ipc_state(process);
     return 0;
 }
 

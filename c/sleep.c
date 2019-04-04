@@ -115,16 +115,16 @@ void pull_from_sleep_list(pcb *process) {
 }
 
 /**
- * Returns -1 if not on sleeper queue, 0 if on sleeper queue
+ * Return 1 if on sleeper queue
+ * Return 0 otherwise
  */
-// TODO: A bit nicer if it returns 1 (true) and 0 (false)
 int on_sleeper_queue(pcb *process) {
     pcb *cur = sleep_delta_list;
     while(cur != NULL) {
-        if (cur == process) return 0;
+        if (cur == process) return 1;
         cur = cur->next;
     }
-    return -1;
+    return 0;
 }
 
 // For debugging 

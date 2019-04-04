@@ -63,7 +63,7 @@ typedef unsigned int size_t; /* Something that can hold the value of
 #define DEFAULT_STACK_SIZE 4096
 #define DEFAULT_PRIORITY 3
 // Maximum number of processes. Must be power of two
-#define MAX_PCBS 32
+#define MAX_PCBS 16 // TODO: Change back to 32
 #define IDLE_PROCESS_PID 0
 // Process state numbers
 #define PROC_READY 0
@@ -209,7 +209,7 @@ void        reset_pcb_table(void);
 
 // disp.c
 void      init_ipc(void);
-int       kill(PID_t pid);
+int       stop_process(PID_t pid);
 pcb_queue queue_constructor(void);
 pcb *     get_ready_queue(int priority);
 int       queue_is_empty(pcb_queue *queue);
@@ -279,7 +279,7 @@ int          sysgetcputimes(process_statuses *proc_stats);
 PID_t generate_pid(pcb *process);
 void  send(pcb *sender, PID_t dest_pid, unsigned long num);
 void  recv(pcb *receiver, PID_t *from_pid, unsigned long *dst_num);
-void  remove_from_ipc_queues(pcb *process);
+void  clear_ipc_state(pcb *process);
 void  notify_dependent_processes(pcb *process);
 int   is_blocked(pcb *process);
 

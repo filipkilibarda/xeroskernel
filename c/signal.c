@@ -172,12 +172,81 @@ int get_highest_signal_number(unsigned long sig_mask) {
     return highest_so_far - 1;
 }
 
+
 /**
  * Returns the signal mask for a specified signal number
  */
 unsigned long get_sig_mask(int signalNumber) {
     return sig_masks[signalNumber];
 }
+
+
+/**
+ * Return 1 if the given signal number is valid.
+ * Return 0 otherwise
+ */
+int is_valid_signal_num(int signalNumber) {
+    // TODO: Un-hardcode the 32
+    return 0 <= signalNumber || signalNumber < 32;
+}
+
+
+/**
+ * Kernel side implementation of the syskill system call.
+ */
+int kill(PID_t pid, int signalNumber) {
+
+    LOG("Attempting signal #%d %d->%d", signalNumber, process->pid, pid);
+
+    // Make sure pid to send to exists
+    pcb *receiving_process = get_active_pcb(pid);
+
+    if (!receiving_process)
+        return -514;
+
+    // If process to signal is blocked, set its return value to -666, unless it
+    // is sleeping
+    if (is_blocked(receiving_process)) {
+
+        LOG("Signaling blocked process #%d %d->%d",
+            signalNumber, process->pid, pid);
+
+        if (!on_sleeper_queue(receiving_process))
+            // TODO: There is no guarantee that this return value will stick
+            //  with the process when it finally returns from the interrupted
+            //  system call. This is because a signal handler is going to run
+            //  between now and when it returns back to normal, and that
+            //  signal handler can make as many system calls as it wants,
+            //  which are gonna overwrite this value.
+            //  This needs to be stored on the stack. I remember talking to
+            //  you (Will) about this before, I feel like you got this
+            //  covered somewhere?
+            receiving_process->ret_value = -666;
+
+        // Clear all IPC state from this process because we're cancelling any
+        // system call it was making (including IPC system calls)
+        clear_ipc_state(receiving_process);
+
+        LOG("Pulling from sleep list");
+        // TODO: The return value here needs to be the amount of time that's
+        //  left to sleep.
+        pull_from_sleep_list(receiving_process);
+        enqueue_in_ready(receiving_process);
+        signal(pid, signalNumber);
+        process->ret_value = 0; // Considered success
+    }
+        // Determine if signalNumber is valid
+        // TODO: un-hardcode this
+    else if (!is_valid_signal_num()) {
+        process->ret_value = -583;
+    } else {
+        LOG("Successful signal #%d %d->%d",
+            signalNumber, process->pid, pid);
+        signal(pid, signalNumber);
+        process->ret_value = 0; // Considered success
+    }
+}
+
 
 // =============================================================================
 // Testing
