@@ -232,6 +232,7 @@ void      print_ready_queue(void);
 void      print_stopped_queue(void);
 void      print_pcb_table(void);
 void      print_queue(pcb_queue *queue);
+void      print_pcb_list(pcb *process);
 void      dump_queues(void);
 void      validate_stopped_queue(void);
 void      enqueue_in_waiters(pcb *process, pcb *wait_for);

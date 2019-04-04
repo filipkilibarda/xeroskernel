@@ -170,6 +170,7 @@ extern void dispatch(void) {
                 break;
 
             case SYSCALL_KILL:
+                // TODO: Put all this in a helper function.
                 // Obtain PID to send signal, and signalNumber
                 pid = *((PID_t *) (process->eip_ptr + 24));
                 signalNumber = *((int *) (process->eip_ptr + 28)); 
@@ -214,6 +215,7 @@ extern void dispatch(void) {
                 break;
 
             case SYSCALL_SET_PRIO:
+                // TODO: Put all this in a helper func
                 // Get requested priority
                 priority = *((int *) (process->eip_ptr + 24));
 
@@ -260,6 +262,7 @@ extern void dispatch(void) {
                 break;
 
             case SYSCALL_SIG_HANDLER:
+                // TODO: Put all this in a helper func
                 signalNumber = *((int *) (process->eip_ptr + 24));
                 newHandler = *((funcptr_t *) (process->eip_ptr + 28));
                 oldHandler = *((funcptr_t **) (process->eip_ptr + 32));
@@ -289,6 +292,7 @@ extern void dispatch(void) {
                 break;
 
             case SYSCALL_SIG_RETURN:
+                // TODO: Put all this in a helper func
                 old_sp = *((void **) (process->eip_ptr + 24));
                 
                 // Determine which signal was just sent and reset its bit in mask
@@ -311,6 +315,7 @@ extern void dispatch(void) {
                 break;
             
             case SYSCALL_WAIT:
+                // TODO: Put all this in a helper func
             //LOG("Doing a syswait\n", NULL);
                 pid = *((PID_t *) (process->eip_ptr + 24));
                 valid_pid = is_valid_pid(pid);
@@ -356,7 +361,9 @@ extern void dispatch(void) {
                 break;
 
             case SYSCALL_CLOSE:
+                // TODO: Put all this in a helper func
                 fd = GET_ARG(int, 0);
+                // TODO: Unhardcode
                 if (fd < 0 || fd > 3) {
                     process->ret_value = -1;
                 } else {
@@ -374,6 +381,7 @@ extern void dispatch(void) {
                 bufflen = GET_ARG(unsigned int, sizeof(int) + sizeof(char *));
 
                 if (bufflen <= 0 || buff == NULL) process->ret_value = -1;
+                // TODO Don't hardcode the fd check!
                 else if (fd < 0 || fd > 3) process->ret_value = -1;
                 else {
                     di_read(process, fd, buff, bufflen);
@@ -389,7 +397,10 @@ extern void dispatch(void) {
                 buff = GET_ARG(char *, sizeof(int));
                 bufflen = GET_ARG(unsigned int, sizeof(int) + sizeof(char *));
 
+                // TODO: Already done in di_calls
                 if (bufflen <= 0 || buff == NULL) process->ret_value = -1;
+                // TODO Don't hardcode the fd check! This check is
+                //  already done in di_write
                 else if (fd < 0 || fd > 3) process->ret_value = -1;
                 else {
                     bytes_written = di_write(process, fd, buff, bufflen);
@@ -406,6 +417,7 @@ extern void dispatch(void) {
                 command = GET_ARG(unsigned long, sizeof(int));
                 ap = GET_ARG(va_list, sizeof(int) + sizeof(unsigned long));
 
+                // TODO: Unhardcode
                 if (fd < 0 || fd > 3) process->ret_value = -1;
                
                 process->ret_value = di_ioctl(process, fd, command, ap);
@@ -422,6 +434,7 @@ extern void dispatch(void) {
                 process->num_ticks++;
 
                 // Ensure we don't enqueue idle process
+                // TODO: Put this in enqueue_in_ready
                 if (process != idle_process) 
                     enqueue_in_ready(process);
 
@@ -439,6 +452,7 @@ extern void dispatch(void) {
                 // (if # of bytes read is sufficient now)
                 
                 end_of_intr();
+                // TODO: Put this in enqueue_in_ready
                 if (process != idle_process)
                     enqueue_in_ready(process);
                 process = dequeue_from_ready();
@@ -504,6 +518,7 @@ void clean_up_devices(pcb *process) {
     fdt_entry_t *fdt = process->fdt;
     for (int i = 0; i < MAX_OPEN_FILES; i++) {
         if (fdt[i].device != NULL) {
+            // TODO: Create a close_fd() function
             fdt[i].device->close(i);
         }
     }
@@ -771,6 +786,18 @@ void print_queue(pcb_queue *queue) {
 
 
 /**
+ * Print out a list of pcbs. Follows next pointers.
+ */
+void print_pcb_list(pcb *process) {
+    if (process == NULL) kprintf("Empty pcb list\n");
+    while (process != NULL) {
+        print_pcb_state(process);
+        process = process->next;
+    }
+}
+
+
+/**
  * Print the state of the ready queues.
  **/
 void dump_queues(void) {
@@ -962,6 +989,7 @@ void wake_up_waiters(pcb_queue *waiter_queue) {
     //LOG("Waking up waiters\n");
     pcb *cur = waiter_queue->front_of_line;
     while (cur != NULL) {
+        // TODO: Enqueue in ready already changes state no need to do here
         cur->state = PROC_READY;
         enqueue_in_ready(cur);
         cur = cur->next;
