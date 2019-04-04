@@ -227,34 +227,11 @@ extern void dispatch(void) {
             case SYSCALL_SIG_HANDLER:
                 // TODO: Put all this in a helper func
                 signal_num = GET_ARG(int, 0);
+                // TODO: camel case
                 newHandler = GET_ARG(funcptr_t, sizeof(int));
                 oldHandler = GET_ARG(funcptr_t *, sizeof(funcptr_t) + sizeof(int));
-         
-                // Check that signal number is valid
-                if (!is_valid_signal_num(signal_num) || signal_num == 31) {
-                    LOG("Invalid signal %d; can't change handler",
-                            signal_num);
-                    process->ret_value = -1;
-                }
-
-                // Check that newHandler is in valid memory space
-                else if (((int) newHandler > HOLESTART && (int) newHandler < HOLEEND)
-                || (int) newHandler > END_OF_MEMORY) process->ret_value = -2;
-
-                // Check that oldHandler is in valid memory space
-                else if (((int) oldHandler > HOLESTART && (int) oldHandler < HOLEEND)
-                || (int) oldHandler > END_OF_MEMORY || oldHandler == NULL) process->ret_value = -3;
-
-                else {
-                    // At this point we're good, register new handler
-                    void (*old_func)(void *) = process->sig_handlers[signal_num];
-                    *oldHandler = old_func;
-                    process->sig_handlers[signal_num] = newHandler;
-                    process->ret_value = 0;
-                    LOG("Registered handler %d for proc %d", signal_num,
-                            process->pid);
-                }
-
+                process->ret_value = sighandler(
+                        process, signal_num, newHandler, oldHandler);
                 enqueue_in_ready(process);
                 process = dequeue_from_ready();
                 break;
@@ -301,6 +278,8 @@ extern void dispatch(void) {
 
                 result = di_read(process, fd, buff, bufflen);
 
+                // TODO: Didn't get too good of a look but seems like this is
+                //  duplicated in di_read
                 if (result == -2)
                     process->ret_value = 0;
                 else

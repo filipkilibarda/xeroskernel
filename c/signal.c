@@ -258,6 +258,40 @@ int sigreturn(pcb *process, void *old_sp) {
 }
 
 
+/**
+ * Kernel side implementation of the system call syssighandler.
+ *
+ * Should be called from the dispatcher and the return value should be directly
+ * passed to calling process.
+ *
+ * Thus, the return codes here are exactly this same as syssighandler.
+ */
+int sighandler(pcb *process, int signal_num, funcptr_t newHandler,
+               funcptr_t *oldHandler)
+{
+    if (!is_valid_signal_num(signal_num) || signal_num == 31) {
+        LOG("Invalid signal %d; can't change handler", signal_num);
+        return -1;
+
+    // TODO: This logic already exists in mem.c
+    } else if (((int) newHandler > HOLESTART && (int) newHandler < HOLEEND)
+               || (int) newHandler > END_OF_MEMORY) {
+        return -2;
+
+    // TODO: This logic already exists in mem.c
+    } else if (((int) oldHandler > HOLESTART && (int) oldHandler < HOLEEND)
+               || (int) oldHandler > END_OF_MEMORY || oldHandler == NULL) {
+        return -3;
+
+    } else {
+        *oldHandler = process->sig_handlers[signal_num];
+        process->sig_handlers[signal_num] = newHandler;
+        LOG("Registered handler %d for proc %d", signal_num, process->pid);
+        return 0;
+    }
+}
+
+
 // =============================================================================
 // Testing
 // =============================================================================
