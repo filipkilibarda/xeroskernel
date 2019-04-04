@@ -2,10 +2,7 @@
  *
  * The functions in this file contain the code for "user" processes.
  *
- *  root():
- *      This is the most important process. It runs with PID 0 and it's
- *      purpose is to start any other processes we want, then simply yield
- *      continuously.
+ * TODO: More docs?
  **/
 
 #include <xeroskernel.h>
@@ -151,19 +148,6 @@ void test_invalid_process_code(void) {
 }
 
 
-/**
- * Helper process for testing keyboard stuff.
- */
-/*
-void test_keyboard(void) {
-    LOG("Starting keyboard test");
-    int fd = sysopen(0);
-    if (fd < 0)
-        FAIL("Failed to open the keyboard!");
-    for(;;);
-}*/
-
-
 #define PUTS(msg, ...) do {\
     sprintf(buff, "Process %d: ", process_pid);\
     sprintf(&buff[12], msg VA_ARGS(__VA_ARGS__));\
@@ -175,7 +159,7 @@ void test_keyboard(void) {
 /**
  * Process used in assignment 2 revised consumer/producer
  **/
-void proc(void) {
+void _producer_consumer_proc(void) {
 
     char buff[80];
     PID_t *receive_from = (PID_t*) kmalloc(4);
@@ -203,7 +187,7 @@ void proc(void) {
 /**
  * Root process for the extended producer consumer problem.
  **/
-extern void root(void) {
+void producer_consumer(void) {
     char buff[80];
     PID_t pids[4];
     PID_t process_pid;
@@ -212,11 +196,11 @@ extern void root(void) {
     // explicitly receive from this process using the PID.
     root_pid = process_pid = sysgetpid();
 
-    PUTS("Root process started.");
+    PUTS("Starting producer consumer");
 
     // Create 4 processes, track their PIDs
     for (int i = 0; i < 4; i++) {
-        PID_t pid = syscreate(proc, 4096);
+        PID_t pid = syscreate(_producer_consumer_proc, 4096);
         pids[i] = pid;
         PUTS("Created a process with PID %d", pid);
     }
@@ -248,9 +232,36 @@ extern void root(void) {
 }
 
 
-// Idle process 
-extern void idleproc(void) {
+/**
+ * A special process that only runs when there's no other process for the
+ * kernel to schedule. Runs with PID 0.
+ */
+void idleproc(void) {
     for(;;);
+}
+
+
+/**
+ * This is the first real (not idle process) process in the system that handles
+ * running every other process. Runs with PID 1.
+ *
+ * I think this is how it's done in Linux.
+ */
+void root(void) {
+    // Tests
+    // =====
+    syswait(create(test_syscreate_return_value, DEFAULT_STACK_SIZE));
+    syswait(create(test_pcb_table_full, DEFAULT_STACK_SIZE));
+    syswait(create(test_stack_too_big, DEFAULT_STACK_SIZE));
+    syswait(create(test_invalid_process_code, DEFAULT_STACK_SIZE));
+    syswait(create(test_ipc, DEFAULT_STACK_SIZE));
+    syswait(create(test_signal, DEFAULT_STACK_SIZE));
+    syswait(create(test_kb, DEFAULT_STACK_SIZE));
+//    syswait(create(test_time_slice, DEFAULT_STACK_SIZE));
+//    syswait(create(producer_consumer, DEFAULT_STACK_SIZE));
+
+    // Start up the shell
+    syswait(create(init_program, DEFAULT_STACK_SIZE));
 }
 
 
@@ -259,7 +270,7 @@ extern void idleproc(void) {
  * correct user and password.
  */
 int verify_user(char *user, char *pass, int len1, int len2) {
-    if (strncmp(user, "cs415\n", len1) == 0 && 
+    if (strncmp(user, "cs415\n", len1) == 0 &&
     strncmp(pass, "EveryonegetsanA\n", len2) == 0) {
         //kprintf("%s\n", pass);
         return 0;
@@ -363,7 +374,7 @@ void alarm_process(void) {
  * - Installs a handler that prints "ALARM, ALARM, ALARM", 
  * - Disables signal 18 once alarm has been delivered
  * - if command line ends w/&, shell will run the process
- * in the background, otherwise it waitsS for the process to 
+ * in the background, otherwise it waits for the process to 
  * terminate. 
  * - Alarm process will sleep for the specified # of ticks, 
  * then sends a signal 18 to the shell 
@@ -373,7 +384,7 @@ void a(int milliseconds, char *buff, int length) {
     funcptr_t *oldHandler = (funcptr_t *) kmalloc(sizeof(funcptr_t*));
     syssighandler(18, alarm_handler, oldHandler);
     num_seconds = milliseconds;
-    
+
     PID_t alarm = syscreate(alarm_process, DEFAULT_STACK_SIZE);
     // If buff ends in &, run in background, else wait.
     if (buff[length - 2] != '&') {
@@ -404,7 +415,7 @@ int does_command_exist(char *buff) {
     else if (strncmp(buff, "k ", 2) == 0) return 2;
     else if (strncmp(buff, "t", 1) == 0) return 3;
     else if (strncmp(buff, "a ", 2) == 0) return 4;
-  
+
     return -1;
 }
 
@@ -477,7 +488,7 @@ void shell(void) {
 
     // Determine if buff command is valid
     // if so, return value indicates which command
-    // it is. 
+    // it is.
     int command = does_command_exist(buff);
     if (command == -1) {
         sysputs("Command not valid\n");
@@ -495,7 +506,7 @@ void shell(void) {
  * If the username and password are correct, 
  * starts the shell program. 
  */
-extern void init_program(void) {
+void init_program(void) {
     int fd;
     sysputs("===========================================\n");
     sysputs("Welcome to Xeros - a not so experimental OS\n");
