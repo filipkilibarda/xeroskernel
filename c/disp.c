@@ -119,6 +119,7 @@ extern void dispatch(void) {
     va_list ap;
     unsigned long command;
     int result;
+    pcb *other_process;           // used in SYSCALL_WAIT
 
 
     // Grab the first process to service
@@ -336,28 +337,28 @@ extern void dispatch(void) {
                 pid = GET_ARG(PID_t, 0);
                 LOG("Starting syswait %d waiting on %d", process->pid, pid);
 
-                valid_pid = is_valid_pid(pid);
-                if (valid_pid == -1 || pid == 0) {
-                    LOG("Invalid pid: %d", pid);
+                // The process we're waiting on
+                other_process = get_pcb(pid);
+
+                if (!other_process) {
                     process->ret_value = -1;
                     enqueue_in_ready(process);
-                }
-                // Check that process isn't waiting on self
-                // TODO: is this really not allowed? I assume so, 
-                // but it doesn't really specify 
-                else if (process->pid == pid) {
+
+                } else if (process->pid == pid) {
+                    // TODO: is this really not allowed? I assume so,
+                    //  but it doesn't really specify
                     LOG("Waiting on self is not allowed");
                     process->ret_value = -1;
                     enqueue_in_ready(process);
-                }
-                else {
+
+                } else {
                     LOG("Blocking %d", process->pid);
                     // Block process
                     process->state = PROC_BLOCKED; 
                     process->ret_value = 0;
                     // Add to queue of waiters
                     process->waiting_for = pid;
-                    enqueue_in_waiters(process, get_pcb(pid));
+                    enqueue_in_waiters(process, other_process);
                 }
 
                 process = dequeue_from_ready();
@@ -548,6 +549,10 @@ void clean_up_devices(pcb *process) {
 /**
  * Return the process control block for the given pid.
  *
+ * If the given PID corresponds to a pcb that is STOPPED, then return NULL,
+ * because a PID is effectively meaningless for a pcb that isn't being
+ * actively used.
+ *
  * If the PID of the process control block doesn't match the given PID, then
  * there is no process with the given PID so return NULL.
  *
@@ -556,7 +561,8 @@ void clean_up_devices(pcb *process) {
  **/
 pcb *get_pcb(PID_t pid) {
     pcb* process = &pcb_table[get_pcb_index(pid)];
-    if (process->pid != pid || process->pid == IDLE_PROCESS_PID) return NULL;
+    if (process->pid != pid || process->pid == IDLE_PROCESS_PID ||
+        process->state == PROC_STOPPED) return NULL;
     return process;
 }
 
