@@ -91,6 +91,11 @@ int contextswitch(pcb *process) {
         process->ret_value = req_id;
         req_id = hardware_interrupt_num;
     }
+    // TODO: Add else statement here that sets the return_value of the pcb to
+    //  some magic number. Because I found some bugs in our code where the
+    //  return value from the prev syscall gets propagated, this would be a
+    //  good way to ensure that assertions fail when return value is
+    //  accidentally not overwritten after syscall
 
     process->stack_ptr = ESP;
     process->eip_ptr = eip_ptr;

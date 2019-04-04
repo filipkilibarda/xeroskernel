@@ -54,8 +54,7 @@ void initproc(void) {
     init_device_table();
 
     create_idle_process();
-    create(test_ipc, DEFAULT_STACK_SIZE);
-//    create(root, DEFAULT_STACK_SIZE);
+    create(root, DEFAULT_STACK_SIZE);
 
     // Start scheduling processes!
     dispatch();

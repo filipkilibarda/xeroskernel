@@ -173,38 +173,55 @@ extern void dispatch(void) {
                 // TODO: Put all this in a helper function.
                 // Obtain PID to send signal, and signalNumber
                 pid = *((PID_t *) (process->eip_ptr + 24));
-                signalNumber = *((int *) (process->eip_ptr + 28)); 
-                
+                signalNumber = *((int *) (process->eip_ptr + 28));
+
+                LOG("Attempting signal #%d %d->%d",
+                    signalNumber, process->pid, pid);
+
                 // Make sure pid to send to exists
+                // TODO: receiving_process might be a nicer name? more clear
                 pcb *process_pcb = get_pcb(pid);
                 if (!process_pcb || process_pcb->state == PROC_STOPPED)
-                process->ret_value = -514;
+                    process->ret_value = -514;
 
                 // If process to signal is blocked, set its return value to
                 // -666
                 else if (process_pcb->state == PROC_BLOCKED) {
+
+                    LOG("Signaling blocked process #%d %d->%d",
+                        signalNumber, process->pid, pid);
+
                     if (on_sleeper_queue(process_pcb) == -1)
-                    process_pcb->ret_value = -666;
+                        process_pcb->ret_value = -666;
+
+                    // TODO: No need to change the state, enqueue_in_ready
+                    //  does that?
                     process_pcb->state = PROC_READY;
-                    // TODO: how do we determine which process it was blocked on?
-                    // Since we need to pull it from any queues it might have been on
-                    // I think I can just repurpose this function!
+                    // TODO: how do we determine which process it was blocked
+                    //  on?
+                    // Since we need to pull it from any queues it might have
+                    // been on I think I can just repurpose this function!
                     process_pcb->receiving_from_pid = NULL;
                     process_pcb->sending_to_pid = NULL;
+                    // TODO: notify_dependent_processes is used to notify
+                    //  dependent processes that the given process has died.
+                    //  That is not the case here?
                     notify_dependent_processes(process_pcb);
                     remove_from_ipc_queues(process_pcb);
-                    //LOG("Pulling from sleep list\n", NULL);
+
+                    LOG("Pulling from sleep list\n", NULL);
                     pull_from_sleep_list(process_pcb);
                     enqueue_in_ready(process_pcb);
                     signal(pid, signalNumber);
+                    process->ret_value = 0; // Considered success
                 }
-
                 // Determine if signalNumber is valid
-                else if (signalNumber < 0 || signalNumber > 31)
-                process->ret_value = -583;
-                
-                else {
-                    //LOG("SIGNALING\n", NULL);
+                // TODO: un-hardcode this
+                else if (signalNumber < 0 || signalNumber > 31) {
+                    process->ret_value = -583;
+                } else {
+                    LOG("Successful signal #%d %d->%d",
+                            signalNumber, process->pid, pid);
                     signal(pid, signalNumber);
                     process->ret_value = 0; // Considered success
                 }
@@ -316,11 +333,12 @@ extern void dispatch(void) {
             
             case SYSCALL_WAIT:
                 // TODO: Put all this in a helper func
-            //LOG("Doing a syswait\n", NULL);
                 pid = *((PID_t *) (process->eip_ptr + 24));
+                LOG("Starting syswait %d waiting on %d", process->pid, pid);
+
                 valid_pid = is_valid_pid(pid);
                 if (valid_pid == -1 || pid == 0) {
-                    //LOG("Invalid pid: %d\n", pid);
+                    LOG("Invalid pid: %d", pid);
                     process->ret_value = -1;
                     enqueue_in_ready(process);
                 }
@@ -328,12 +346,12 @@ extern void dispatch(void) {
                 // TODO: is this really not allowed? I assume so, 
                 // but it doesn't really specify 
                 else if (process->pid == pid) {
-                    //LOG("Waiting on self is not allowed\n", NULL);
+                    LOG("Waiting on self is not allowed");
                     process->ret_value = -1;
                     enqueue_in_ready(process);
                 }
                 else {
-                    //LOG("Blocking and puttting in waiters\n", NULL);
+                    LOG("Blocking %d", process->pid);
                     // Block process
                     process->state = PROC_BLOCKED; 
                     process->ret_value = 0;

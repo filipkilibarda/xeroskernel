@@ -240,6 +240,7 @@ void sleep_a_while(void) {
     ASSERT(result > 0, "Result should have been > 0\n");
 }
 
+
 /**
  * Test the signal functionality
  */
@@ -250,7 +251,7 @@ void _test_signal(void) {
     // TEST 1: Ensure that one process can signal another 
     PID_t p1 = syscreate(test_process, DEFAULT_STACK_SIZE);
     syssleep(200);
-    syskill(p1, 31);
+    ASSERT_INT_EQ(0, syskill(p1, 31));
     ASSERT_INT_EQ(PROC_STOPPED, get_pcb(p1)->state);
     // NOTE: this number changes based on how many tests/
     // processes are set up in init.c
@@ -305,7 +306,7 @@ void _test_signal(void) {
     // We never defined a signal handler so it should just ignore this.
     // We will see it print 10 times. 
     sysputs("Calling syskill\n");
-    syskill(p1, 2);
+    ASSERT_INT_EQ(0, syskill(p1, 2));
     
     // TEST 8: attempt to signal while a process is blocked sleeping
     // - should return -666
@@ -314,14 +315,14 @@ void _test_signal(void) {
     LOG("PID is %d\n", p2);
     syssleep(1000);
     LOG("Signaling p2: %d with signal 2\n", p2); 
-    syskill(p2, 2);
+    ASSERT_INT_EQ(0, syskill(p2, 2));
 
     syssleep(1000);
     // TEST 9: attempt to signal a process blocked on a send
     // expect result of send to be -666 in p3
     proc = syscreate(test_process, DEFAULT_STACK_SIZE);
     PID_t p3 = syscreate(send_signal_int, DEFAULT_STACK_SIZE);
-    syskill(p3, 4);
+    ASSERT_INT_EQ(0, syskill(p3, 4));
     
     // TEST 10: Illegal syskill signal
     result = syskill(proc, 50);
@@ -344,6 +345,5 @@ void _test_signal(void) {
     PID_t sleeper = syscreate(sleep_a_while, DEFAULT_STACK_SIZE);
     syssleep(1000);
     LOG("Calling syskill on sleeper\n");
-    syskill(sleeper, 5);
-
+    ASSERT_INT_EQ(0, syskill(sleeper, 5));
 }

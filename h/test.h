@@ -145,7 +145,7 @@
     if (minunit_tmp_e == minunit_tmp_r) {\
         FAILL("%d: didn't expect %d", minunit_tmp_e, minunit_tmp_r);\
     } else {\
-        LOG("Didn't get %d as expected", expected);\
+        LOG("NEQ %d assertion passed!", expected);\
     }\
 } while(0)
 
