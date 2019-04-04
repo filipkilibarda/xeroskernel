@@ -800,6 +800,20 @@ void print_pcb_table(void) {
 
 
 /**
+ * Follow all the next pointers from the given pcb and return the count
+ * upon reaching a NULL next pointer.
+ */
+int get_length_pcb_list(pcb *process) {
+    int count = 0;
+    while (process != NULL) {
+        count++;
+        process = process->next;
+    }
+    return count;
+}
+
+
+/**
  * Check that the given queue is valid. Used for testing.
  **/
 void validate_stopped_queue(void) {

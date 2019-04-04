@@ -219,6 +219,8 @@ void _sleep_test(void) {
     sleep(pcb_3, pcb_3->sleep_time);
     sleep(pcb_4, pcb_4->sleep_time);
 
+    ASSERT_INT_EQ(4, get_length_pcb_list(sleep_delta_list));
+
     for (int i = 0; i < 5; i++) {
         tick();
     }
@@ -298,5 +300,7 @@ pcb *init_test_pcb(unsigned int milliseconds) {
     test_pcb->sleep_time = milliseconds;
     test_pcb->priority = 3;
     test_pcb->next = NULL;
+    test_pcb->sending_to_pid = NULL;
+    test_pcb->receiving_from_pid = NULL;
     return test_pcb;
 }
