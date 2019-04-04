@@ -209,15 +209,6 @@ int kill(PID_t pid, int signal_num) {
     if (is_blocked(receiving_process)) {
 
         if (!on_sleeper_queue(receiving_process))
-            // TODO: There is no guarantee that this return value will stick
-            //  with the process when it finally returns from the interrupted
-            //  system call. This is because a signal handler is going to run
-            //  between now and when it returns back to normal, and that
-            //  signal handler can make as many system calls as it wants,
-            //  which are gonna overwrite this value.
-            //  This needs to be stored on the stack. I remember talking to
-            //  you (Will) about this before, I feel like you got this
-            //  covered somewhere?
             receiving_process->ret_value = -666;
 
         // Clear all IPC state from this process because we're cancelling any
@@ -240,6 +231,30 @@ int kill(PID_t pid, int signal_num) {
         signal(pid, signal_num);
         return 0;
     }
+}
+
+
+/**
+ * Kernel side implementation of the system call syssigreturn.
+ */
+int sigreturn(pcb *process, void *old_sp) {
+    // Determine which signal was just sent and reset its bit in mask
+    // TODO: We should reset the bit mask when we start hanlding the signal,
+    //  not when we finish
+    // TODO: Would be great if -4 were not hardcoded
+    int signal_num = *((int *) (process->eip_ptr - 4));
+    unsigned long mask = get_sig_mask(signal_num);
+    process->sig_mask = process->sig_mask ^ mask;
+
+    // Reset current signal priority in PCB
+    process->sig_prio = -1;
+
+    // Update stack pointer
+    process->stack_ptr = old_sp;
+
+    // Restore old return value
+    // TODO: Would be great if 36 were not hardcoded
+    return *((int *) (old_sp + 36));
 }
 
 

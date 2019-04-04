@@ -109,7 +109,6 @@ extern void dispatch(void) {
     funcptr_t *oldHandler;        // used in SYSCALL_SIG_HANDLER
     void *old_sp;                 // used in SYSCALL_SIGRETURN
     int kill_result;
-    int old_ret_value;
     int bytes_written;
     int fd;
     unsigned int device_no;
@@ -264,24 +263,10 @@ extern void dispatch(void) {
                 break;
 
             case SYSCALL_SIG_RETURN:
-                // TODO: Put all this in a helper func
                 old_sp = GET_ARG(void *, 0);
-
-                // Determine which signal was just sent and reset its bit in mask
-                signal_num = *((int *) (process->eip_ptr - 4));
-                unsigned long mask = get_sig_mask(signal_num);
-                process->sig_mask = process->sig_mask ^ mask;
-
-                // Restore old return value
-                old_ret_value = *((int *) (old_sp + 36));
-                process->ret_value = old_ret_value;
-
-                // Reset current signal priority in PCB
-                process->sig_prio = -1;
-
-                // Update stack pointer
-                process->stack_ptr = old_sp;
-
+                // The return value will be whatever it was before the
+                // process was signalled
+                process->ret_value = sigreturn(process, old_sp);
                 enqueue_in_ready(process);
                 process = dequeue_from_ready();
                 break;

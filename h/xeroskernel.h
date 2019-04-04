@@ -299,6 +299,7 @@ void          sigtramp(void (*handler)(void *), void *context);
 unsigned long get_sig_mask(int signal_num);
 int           is_valid_signal_num(int signal_num);
 int           kill(PID_t pid, int signal_num);
+int           sigreturn(pcb *process, void *old_sp);
 
 
 // di_calls.c

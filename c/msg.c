@@ -345,10 +345,6 @@ void _test_ipc(void) {
     // Ensure all pcbs in prev. tests are stopped.
     wait_for_free_pcbs(num_stopped_processes);
 
-    // TODO: If you comment out all the following *tests* then the assertions
-    //  at the end should fail with "expect empty queue" for the stopped queue.
-    //  Make sure to check this.
-
     /* ================================================= */
     LOG("=== Many receivers blocked on one process ===");
     /* ================================================= */
