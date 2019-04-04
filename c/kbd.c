@@ -165,7 +165,7 @@ int keyboard_write(void *void_buff, unsigned int bufflen) {
  * 1 if read finished successfully
  */
 int keyboard_read(void *_buff, unsigned int bufflen) {
-    pcb *reading_process = get_pcb(holding_pid);
+    pcb *reading_process = get_active_pcb(holding_pid);
     ASSERT(reading_process != NULL, "did not get the process correctly\n");
     char *buff = (char *) _buff;
     read_md.process = reading_process;
@@ -332,7 +332,7 @@ unsigned long num_read) {
                 // return indication that EOF was entered
                 enable_irq(KEYBOARD_IRQ, 1);
                 // Set FDT entry to NULL
-                pcb *process = get_pcb(holding_pid);
+                pcb *process = get_active_pcb(holding_pid);
                 // NOTE: this is hacky as hell
                 process->fdt[0].device = NULL;
                 process->fdt[1].device = NULL;

@@ -54,7 +54,7 @@ unsigned long sig_masks[32] =
  **/ 
 int signal(PID_t pid, int signalNumber) {
 
-    pcb *process_to_signal = get_pcb(pid);
+    pcb *process_to_signal = get_active_pcb(pid);
 
     // Check if the process we want to signal is blocked
     if (process_to_signal->state == PROC_BLOCKED) {
@@ -252,7 +252,7 @@ void _test_signal(void) {
     PID_t p1 = syscreate(test_process, DEFAULT_STACK_SIZE);
     syssleep(200);
     ASSERT_INT_EQ(0, syskill(p1, 31));
-    ASSERT_INT_EQ(PROC_STOPPED, get_pcb(p1)->state);
+    ASSERT_INT_EQ(PROC_STOPPED, get_active_pcb(p1)->state);
     // NOTE: this number changes based on how many tests/
     // processes are set up in init.c
     ASSERT_INT_EQ(29, get_num_stopped_processes());

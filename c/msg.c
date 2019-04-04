@@ -30,7 +30,7 @@ void init_ipc(void) {
  **/
 void send(pcb *sending_pcb, PID_t dest_pid, unsigned long num) {
     int ret = 0;
-    pcb *receiving_pcb = get_pcb(dest_pid);
+    pcb *receiving_pcb = get_active_pcb(dest_pid);
 
     if (sending_pcb == receiving_pcb)                       ret = -3;
     else if (receiving_pcb == NULL || is_stopped(receiving_pcb)) ret = -2;
@@ -78,8 +78,8 @@ void recv(pcb *receiving_pcb, PID_t *from_pid, unsigned long *dst_num) {
     else if (!within_memory_bounds((unsigned long) dst_num))  ret = -4;
     else if (!within_memory_bounds((unsigned long) from_pid)) ret = -5;
     else if (*from_pid != 0) {
-        sending_pcb = get_pcb(*from_pid);
-        if (sending_pcb == NULL || is_stopped(sending_pcb)) ret = -2;
+        sending_pcb = get_active_pcb(*from_pid);
+        if (sending_pcb == NULL)                            ret = -2;
     } else if (get_num_stopped_processes() >= MAX_PCBS - 2) ret = -10;
 
     if (ret != 0) {
@@ -167,10 +167,10 @@ void remove_from_ipc_queues(pcb *process) {
 
     pull_from_queue(&receive_any_queue, process);
 
-    other_process = get_pcb(process->receiving_from_pid);
+    other_process = get_active_pcb(process->receiving_from_pid);
     if (other_process) pull_from_queue(&other_process->receiver_queue, process);
 
-    other_process = get_pcb(process->sending_to_pid);
+    other_process = get_active_pcb(process->sending_to_pid);
     if (other_process) pull_from_queue(&other_process->sender_queue, process);
 }
 
@@ -248,7 +248,7 @@ void _test_ipc(void) {
     int initial_free_memory = total_free_memory();
     int num_stopped_processes = get_num_stopped_processes();
     sender_pid = sysgetpid();
-    pcb *sender_pcb = get_pcb(sender_pid);
+    pcb *sender_pcb = get_active_pcb(sender_pid);
     PID_t from_pid;
     unsigned long msg;
     pcb *unused_pcb;
@@ -409,7 +409,7 @@ void _test_ipc(void) {
  * This process will die as soon as another process blocks on it.
  **/
 void dying_process(void) {
-    pcb *my_pcb = get_pcb(sysgetpid());
+    pcb *my_pcb = get_active_pcb(sysgetpid());
     while (queue_is_empty(&my_pcb->sender_queue) &&
            queue_is_empty(&my_pcb->receiver_queue))
     {

@@ -107,7 +107,6 @@ extern void dispatch(void) {
     process_statuses *proc_stats; // used in SYSCALL_GET_CPU_TIMES
     funcptr_t newHandler;         // used in SYSCALL_SIG_HANDLER
     funcptr_t *oldHandler;        // used in SYSCALL_SIG_HANDLER
-    int valid_pid;                // used in SYSCALL_WAIT
     void *old_sp;                 // used in SYSCALL_SIGRETURN
     int kill_result;
     int old_ret_value;
@@ -182,7 +181,7 @@ extern void dispatch(void) {
 
                 // Make sure pid to send to exists
                 // TODO: receiving_process might be a nicer name? more clear
-                pcb *process_pcb = get_pcb(pid);
+                pcb *process_pcb = get_active_pcb(pid);
                 if (!process_pcb || process_pcb->state == PROC_STOPPED)
                     process->ret_value = -514;
 
@@ -338,7 +337,7 @@ extern void dispatch(void) {
                 LOG("Starting syswait %d waiting on %d", process->pid, pid);
 
                 // The process we're waiting on
-                other_process = get_pcb(pid);
+                other_process = get_active_pcb(pid);
 
                 if (!other_process) {
                     process->ret_value = -1;
@@ -506,13 +505,9 @@ void free_process_memory(pcb *process) {
  * what system call it made.
  **/
 int kill(PID_t pid) {
-    pcb *process = get_pcb(pid);
-    // Can't kill the idle process
-    if (pid == IDLE_PROCESS_PID) return -1;
+    pcb *process = get_active_pcb(pid);
     // Process with given PID doesn't exist
     if (!process) return -1;
-    // Can't kill a stopped process.
-    if (is_stopped(process)) return -1;
 
     //LOG("Killing process PID: %d", process->pid);
     free_process_memory(process);
@@ -561,8 +556,21 @@ void clean_up_devices(pcb *process) {
  **/
 pcb *get_pcb(PID_t pid) {
     pcb* process = &pcb_table[get_pcb_index(pid)];
-    if (process->pid != pid || process->pid == IDLE_PROCESS_PID ||
-        process->state == PROC_STOPPED) return NULL;
+    if (process->pid != pid || process->pid == IDLE_PROCESS_PID) return NULL;
+    return process;
+}
+
+
+/**
+ * Same as get_pcb except one difference.
+ *
+ * If the given PID corresponds to a pcb that is STOPPED, then return NULL,
+ * because a PID is effectively meaningless for a pcb that isn't being
+ * actively used.
+ **/
+pcb *get_active_pcb(PID_t pid) {
+    pcb *process = get_pcb(pid);
+    if (process->state == PROC_STOPPED) return NULL;
     return process;
 }
 

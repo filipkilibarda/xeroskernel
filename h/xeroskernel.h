@@ -224,6 +224,7 @@ int       num_ready_processes(void);
 int       get_num_stopped_processes(void);
 int       get_state(int pid);
 pcb *     get_pcb(PID_t pid);
+pcb *     get_active_pcb(PID_t pid);
 int       get_pcb_index(PID_t pid);
 int       get_length_pcb_list(pcb *process);
 int       is_stopped(pcb *process);
