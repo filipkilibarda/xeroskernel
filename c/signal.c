@@ -40,18 +40,19 @@ unsigned long sig_masks[32] =
 
 /**
  * Signals the specified process, either doing one of the following:
+ *
  * - If the current signal priority is higher than the priority of 
- * the signal being delivered, only update the signal mask. The signal
- * is not delivered yet. 
+ *   the signal being delivered, only update the signal mask. The signal
+ *   is not delivered yet.
+ *
  * - If the current signal priority if lower than the priority of the
- * signal being delivered, add a signal context on top of the current 
- * process stack and update the signal mask.
+ *   signal being delivered, add a signal context on top of the current
+ *   process stack and update the signal mask.
+ *
  * - If there is a pending signal that has a higher priority than the 
- * signal currently being sent, add signal context for that signal 
- * to the stack, and update the mask with the sending signal.
- * 
- * 
- **/ 
+ *   signal currently being sent, add signal context for that signal
+ *   to the stack, and update the mask with the sending signal.
+ **/
 int signal(PID_t pid, int signalNumber) {
 
     pcb *process_to_signal = get_active_pcb(pid);
