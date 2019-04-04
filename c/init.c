@@ -43,36 +43,23 @@ void initproc(void) {
 
     // Initialize memory layout
     kmeminit();
-    kprintf("memory inited\n");
-    //RUN_TEST(test_memory_manager);
+    RUN_TEST(test_memory_manager);
 
     // Initialize PCB array
     pcb_init();
-    kprintf("dispatcher inited\n");
-    //RUN_TEST(test_dispatcher);
+    RUN_TEST(test_dispatcher);
+    RUN_TEST(test_sleep);
 
-    // Test sleep functionality
-    //test_sleep();
-    // Test time slicing functionality
-    //test_time_slice();
-
-    // Set entry point for ISR
     contextinit();
-    kprintf("context inited\n");
-
     init_ipc();
     init_device_table();
 
     create_idle_process();
+    create(root, DEFAULT_STACK_SIZE);
 
-    create(init_program, DEFAULT_STACK_SIZE);
-    
-    // Call dispatcher to start running
+    // Start scheduling processes!
     dispatch();
-
-    kprintf("\n\nWhen your  kernel is working properly ");
-    kprintf("this line should never be printed!\n");
-    for(;;); /* loop forever */
+    FAIL("Should never reach this! Dispatcher should never return.");
 }
 
 

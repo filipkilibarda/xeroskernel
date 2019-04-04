@@ -10,25 +10,8 @@
 pcb *sleep_delta_list = NULL;
 
 // Testing methods
-pcb *init_test_pcb(unsigned int milliseconds);
+static pcb *init_test_pcb();
 
-void _sleep_test(void);
-
-void _test_time_slice(void);
-
-/**
- * Used as a wrapper for running the sleep tests
- **/
-void test_sleep(void) {
-    RUN_TEST(_sleep_test);
-}
-
-/**
- * Used as a wrapper for running time slice test
- */
-void test_time_slice(void) {
-    RUN_TEST(_test_time_slice);
-}
 
 /**
  * Adds a given process to its spot in the sleep queue.
@@ -162,19 +145,20 @@ void print_sleep_list(void) {
  * - PCB removed from delta list after sufficient number of quantums. 
  * - PCB added back correctly to ready queue.
  **/
-void _sleep_test(void) {
+void test_sleep(void) {
+    reset_pcb_table();
     // TEST 1: Create 4 PCBs with different sleep times,
     // add them to sleep queue.
     // Ensure that they get added in the correct order.
-    pcb *pcb_1 = init_test_pcb(1000);
-    pcb *pcb_2 = init_test_pcb(2000);
-    pcb *pcb_3 = init_test_pcb(1500);
-    pcb *pcb_4 = init_test_pcb(500);
+    pcb *pcb_1 = init_test_pcb();
+    pcb *pcb_2 = init_test_pcb();
+    pcb *pcb_3 = init_test_pcb();
+    pcb *pcb_4 = init_test_pcb();
 
-    sleep(pcb_1, pcb_1->sleep_time);
-    sleep(pcb_2, pcb_2->sleep_time);
-    sleep(pcb_3, pcb_3->sleep_time);
-    sleep(pcb_4, pcb_4->sleep_time);
+    sleep(pcb_1, 1000);
+    sleep(pcb_2, 2000);
+    sleep(pcb_3, 1500);
+    sleep(pcb_4, 500);
 
     pcb *cur = sleep_delta_list;
     for (int i = 0; i < 4; i++) {
@@ -195,18 +179,15 @@ void _sleep_test(void) {
         cur = cur->next;
     }
 
-    kfree(pcb_1);
-    kfree(pcb_2);
-    kfree(pcb_3);
-    kfree(pcb_4);
+    reset_pcb_table();
 
     // TEST 2: Ensure that after an ample number of ticks,
     // Processes are removed from sleep queue AND added
     // back to the ready queue.
-    pcb_1 = init_test_pcb(50);
-    pcb_2 = init_test_pcb(20);
-    pcb_3 = init_test_pcb(10);
-    pcb_4 = init_test_pcb(30);
+    pcb_1 = init_test_pcb();
+    pcb_2 = init_test_pcb();
+    pcb_3 = init_test_pcb();
+    pcb_4 = init_test_pcb();
 
     // Give them simple PIDs for testing purposes
     pcb_1->pid = 1;
@@ -214,15 +195,18 @@ void _sleep_test(void) {
     pcb_3->pid = 3;
     pcb_4->pid = 4;
 
-    sleep(pcb_1, pcb_1->sleep_time);
-    sleep(pcb_2, pcb_2->sleep_time);
-    sleep(pcb_3, pcb_3->sleep_time);
-    sleep(pcb_4, pcb_4->sleep_time);
+    sleep(pcb_1, 50);
+    sleep(pcb_2, 20);
+    sleep(pcb_3, 10);
+    sleep(pcb_4, 30);
+
+    ASSERT_INT_EQ(4, get_length_pcb_list(sleep_delta_list));
 
     for (int i = 0; i < 5; i++) {
         tick();
     }
 
+    kprintf("%d", sleep_delta_list->sleep_time);
     ASSERT(sleep_delta_list == NULL,
            "Processes should have all been removed from the sleep list.");
     // Get the ready queue
@@ -265,6 +249,7 @@ void print_loop_one(void) {
     }
 }
 
+
 /**
  * Loops and prints "Hello, process 2"
  * Used to test time slicing
@@ -275,28 +260,26 @@ void print_loop_two(void) {
     }
 }
 
+
 /**
  * Tests time slicing by creating two infinite loop
  * processes that print messages. If time slicing works
  * the messages should eventually alternate when a timer 
  * interrupt goes off.
  */
-void _test_time_slice(void) {
+void test_time_slice(void) {
     create(print_loop_one, DEFAULT_STACK_SIZE);
     create(print_loop_two, DEFAULT_STACK_SIZE);
 }
+
 
 /**
  * Helpful function for creating PCBs to be used in 
  * testing of sleep functionality.
  **/
-pcb *init_test_pcb(unsigned int milliseconds) {
-    // For testing sleep, all we really need is a PCB with
-    // a sleep time.
-    pcb *test_pcb = kmalloc(sizeof(pcb));
-    test_pcb->state = PROC_BLOCKED;
-    test_pcb->sleep_time = milliseconds;
-    test_pcb->priority = 3;
-    test_pcb->next = NULL;
-    return test_pcb;
+static pcb *init_test_pcb() {
+    pcb *process = dequeue_from_stopped();
+    if (!process) FAIL("Bug. Should be a process available.");
+    process->priority = 3;
+    return process;
 }

@@ -367,7 +367,7 @@ void read_char(void) {
  */
 void put_in_buffer(unsigned char ascii) {
     for (int i = 0; i < KEYBOARD_BUFFLEN; i++) {
-        // TODO: This is bad?
+        // TODO: Not optimal?
         //  1) loop over buffer everytime
         //  2) NULL char is special here. Should it be?
         if (kernel_buff[i] == NULL) {

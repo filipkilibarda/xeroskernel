@@ -786,6 +786,18 @@ void print_queue(pcb_queue *queue) {
 
 
 /**
+ * Print out a list of pcbs. Follows next pointers.
+ */
+void print_pcb_list(pcb *process) {
+    if (process == NULL) kprintf("Empty pcb list\n");
+    while (process != NULL) {
+        print_pcb_state(process);
+        process = process->next;
+    }
+}
+
+
+/**
  * Print the state of the ready queues.
  **/
 void dump_queues(void) {
@@ -811,6 +823,20 @@ void print_pcb_table(void) {
     for (int i = 0; i < MAX_PCBS; i++) {
         print_pcb_state(&pcb_table[i]);
     }
+}
+
+
+/**
+ * Follow all the next pointers from the given pcb and return the count
+ * upon reaching a NULL next pointer.
+ */
+int get_length_pcb_list(pcb *process) {
+    int count = 0;
+    while (process != NULL) {
+        count++;
+        process = process->next;
+    }
+    return count;
 }
 
 
