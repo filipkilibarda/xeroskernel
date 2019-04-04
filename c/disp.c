@@ -322,15 +322,9 @@ extern void dispatch(void) {
                 fd = GET_ARG(int, 0);
                 command = GET_ARG(unsigned long, sizeof(int));
                 ap = GET_ARG(va_list, sizeof(int) + sizeof(unsigned long));
-
-                // TODO: Unhardcode
-                if (fd < 0 || fd > 3) process->ret_value = -1;
-               
                 process->ret_value = di_ioctl(process, fd, command, ap);
-                   
                 enqueue_in_ready(process);
                 process = dequeue_from_ready();
-
                 break;
 
             case TIMER_INT:

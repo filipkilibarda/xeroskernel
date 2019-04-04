@@ -91,13 +91,9 @@ int di_write(pcb *process, int fd, char *buff, unsigned int bufflen) {
  * Performs device specific control function
  */
 int di_ioctl(pcb *process, int fd, int command, va_list ap) {
-
     if (!file_is_open(process, fd))
         return -1;
-
-    int result = process->fdt[fd].device->ioctl(command, ap);
-         
-    return result;
+    return process->fdt[fd].device->ioctl(command, ap);
 }
 
 
