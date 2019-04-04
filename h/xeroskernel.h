@@ -274,6 +274,7 @@ int          sysread(int fd, void *buff, unsigned int bufflen);
 int          sysioctl(int fd, unsigned long command, ...);
 int          sysgetcputimes(process_statuses *proc_stats);
 void         wait(pcb *process, PID_t pid);
+int          setprio(pcb *process, int priority);
 
 
 // msg.c

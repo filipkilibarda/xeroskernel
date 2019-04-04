@@ -88,6 +88,7 @@ void sysputs(char *str) {
     syscall(SYSCALL_PUTS, str);
 }
 
+
 /**
  * Sends a signal (signal_num) to the specified process
  *
@@ -99,6 +100,7 @@ int syskill(PID_t pid, int signal_num) {
     return syscall(SYSCALL_KILL, pid, signal_num);
 }
 
+
 /** Sets the priority to a value between 0 and 3, inclusive
  * Note: lower number implies higher priority
  * -1 may be passed as the priority to obtain the current process priority.
@@ -108,6 +110,7 @@ int syskill(PID_t pid, int signal_num) {
 int syssetprio(int priority) {
     return syscall(SYSCALL_SET_PRIO, priority);
 }
+
 
 /**
  * Attempts to send given number to the process specified by dest_pid
@@ -303,4 +306,28 @@ void wait(pcb *process, PID_t pid) {
         // Add to queue of waiters
         enqueue_in_waiters(process, other_process);
     }
+}
+
+
+/**
+ * Kernel side implementation of the syssetprio system call.
+ *
+ * Should be called from the dispatcher.
+ *
+ * Return value corresponds exactly to what should be returned to the calling
+ * process.
+ */
+int setprio(pcb *process, int priority) {
+    // Check for valid priority
+    // TODO: Is this check duplicated anywhere else?
+    // TODO: Pretty sure we have a MAX PRIORITIES thing somewhere?
+    if (priority < -1 || priority > 3)
+        return -1;
+
+    if (priority == -1)
+        return process->priority;
+
+    int old_priority = process->priority;
+    process->priority = priority;
+    return old_priority;
 }

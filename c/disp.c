@@ -94,7 +94,6 @@ void reset_pcb_table(void) {
  **/
 extern void dispatch(void) {
     int request;
-    int priority;                 // used in SYSCALL_SET_PRIO
     char *message;                // used in SYSCALL_PUTS
     PID_t pid;                    // used in SYSCALL_KILL & WAIT
     void *process_func_ptr;       // used in SYSCALL_CREATE
@@ -187,25 +186,7 @@ extern void dispatch(void) {
                 break;
 
             case SYSCALL_SET_PRIO:
-                // TODO: Put all this in a helper func
-                // Get requested priority
-                priority = GET_ARG(int, 0);
-
-                // Check for valid priority
-                if (priority < -1 || priority > 3) {
-                    process->ret_value = -1;
-                    enqueue_in_ready(process);
-                    process = dequeue_from_ready();
-                    break;
-                }
-
-                // Set the priority, or return the current priority
-                if (priority == -1) process->ret_value = process->priority;
-                else {
-                    process->ret_value = process->priority;
-                    process->priority = priority;
-                }
-
+                process->ret_value = setprio(process, GET_ARG(int, 0));
                 enqueue_in_ready(process);
                 process = dequeue_from_ready();
                 break;
