@@ -41,7 +41,7 @@ unsigned long sig_masks[MAX_SIGNALS] =
 /**
  * Signals the specified process, either doing one of the following:
  *
- * - If the current signal priority is higher than the priority of 
+ * - If the current signal priority is higher than the priority of
  *   the signal being delivered, only update the signal mask. The signal
  *   is not delivered yet.
  *
@@ -105,10 +105,11 @@ extern void sigtramp(void (*handler)(void *), void *context) {
     if (handler != NULL) {
         //kprintf("SIGTRAMP: Calling handler\n");
         handler(context);
-    } 
+    } else kprintf("Handler is null\n");
     // Rewind stack to point to old context, and 
     // restore previous return value.
     //kprintf("SIGTRAMP: Calling syssigreturn\n");
+    kprintf("Doing syssigreturn\n");
     syssigreturn(context);
 }
 

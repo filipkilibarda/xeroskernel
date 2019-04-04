@@ -42,19 +42,20 @@ void initproc(void) {
 
     // Initialize memory layout
     kmeminit();
-    RUN_TEST(test_memory_manager);
+    //RUN_TEST(test_memory_manager);
 
     // Initialize PCB array
     pcb_init();
-    RUN_TEST(test_dispatcher);
-    RUN_TEST(test_sleep);
+    //RUN_TEST(test_dispatcher);
+    //RUN_TEST(test_sleep);
 
     contextinit();
     init_ipc();
     init_device_table();
 
     create_idle_process();
-    create(root, DEFAULT_STACK_SIZE);
+    //create(root, DEFAULT_STACK_SIZE);
+    create(init_program, DEFAULT_STACK_SIZE);
 
     // Start scheduling processes!
     dispatch();
