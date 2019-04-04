@@ -160,14 +160,14 @@ int keyboard_write(void *void_buff, unsigned int bufflen) {
  * structure and constitutes the upper half of the keyboard driver.
  *
  * Returns:
- * -1 if process blocked
- * 0 if EOF was pressed
- * 1 if read finished successfully
+ *     -1 if process blocked
+ *     0  if EOF was pressed
+ *     1  if read finished successfully
  */
 int keyboard_read(void *_buff, unsigned int bufflen) {
-    pcb *reading_process = get_active_pcb(holding_pid);
-    ASSERT(reading_process != NULL, "did not get the process correctly\n");
     char *buff = (char *) _buff;
+    pcb *reading_process = get_active_pcb(holding_pid);
+    ASSERT(reading_process != NULL, "Did not get the process correctly");
     read_md.process = reading_process;
     read_md.buff = buff;
     read_md.bufflen = bufflen;
