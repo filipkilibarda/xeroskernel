@@ -49,13 +49,9 @@
  **/
 #ifdef TESTING
 #define RUN_TEST(test_function) do {\
-    kprintf("=====================================================\n"\
-            "Starting test!\n"\
-            "=====================================================\n");\
+    LOG("=============== Starting test! ===============");\
     test_function();\
-    kprintf("=====================================================\n"\
-            "Finished test!\n"\
-            "=====================================================\n");\
+    LOG("=============== Finishing test! ===============");\
 } while(0)
 #else
 #define RUN_TEST(test_function)
@@ -100,10 +96,10 @@
     char spaces[80];\
     memset(spaces, 32, 80);\
     sprintf(info, "%s  %s:%d:  ", __FILE__, __func__, __LINE__);\
-    int num_spaces = 30 - strlen(info);\
+    int num_spaces = 35 - strlen(info);\
     spaces[num_spaces > 0 ? num_spaces : 0] = 0;\
     strcat(info, spaces);\
-    kprintf(info);\
+    kprintf(info+5); /* +5 Super hack to remove ../c/ from filepath */\
     kprintf(message VA_ARGS(__VA_ARGS__));\
     kprintf("\n");\
     __asm __volatile("popf":::);\

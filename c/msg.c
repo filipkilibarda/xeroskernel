@@ -333,9 +333,9 @@ void _test_ipc(void) {
     receiver_pid = create(receive_any, DEFAULT_STACK_SIZE);
     sysyield(); // Yield so other process can start
     ASSERT(!queue_is_empty(&receive_any_queue), "Queue should have one proc.");
-    WAIT(receiver_pid);
-    // TODO: Issue here is that kill doesn't execute synchronously anymore, so
-    // we need some way to ensure sigtramp happens before this assertion. 
+    KILL(receiver_pid);
+    ret = syswait(receiver_pid);
+    ASSERT(ret == 0 || ret == -1, "Invalid return value from syswait");
     ASSERT(queue_is_empty(&receive_any_queue), "Queue should be empty.");
     ASSERT_INT_EQ(-2, syssend(receiver_pid, MSG));
 

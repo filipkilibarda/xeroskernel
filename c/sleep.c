@@ -10,7 +10,7 @@
 pcb *sleep_delta_list = NULL;
 
 // Testing methods
-static pcb *init_test_pcb();
+static pcb *init_test_pcb(unsigned int milliseconds);
 
 
 /**
@@ -227,7 +227,7 @@ void test_sleep(void) {
         else if (this_pid == pid_2) seen2 = 1;
         else if (this_pid == pid_3) seen3 = 1;
         else if (this_pid == pid_4) seen4 = 1;
-        LOG("Ready queue PID is %d\n", this_pid);
+        LOG("Ready queue PID is %d", this_pid);
         ready_queue = ready_queue->next;
     }
 

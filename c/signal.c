@@ -236,7 +236,7 @@ void proc_killer(void) {
 
 void sleep_a_while(void) {
     int result = syssleep(20000);
-    LOG("Sleep result: %d\n", result);
+    LOG("Sleep result: %d", result);
     ASSERT(result > 0, "Result should have been > 0\n");
 }
 
@@ -247,15 +247,17 @@ void sleep_a_while(void) {
 void _test_signal(void) {
     kprintf("Starting signal tests\n");
 
+    int initial_num_stopped = get_num_stopped_processes();
+
     // A basic test of syssigkill() functionality 
     // TEST 1: Ensure that one process can signal another 
     PID_t p1 = syscreate(test_process, DEFAULT_STACK_SIZE);
+    pcb *p1_pcb = get_active_pcb(p1);
+
     syssleep(200);
     ASSERT_INT_EQ(0, syskill(p1, 31));
-    ASSERT_INT_EQ(PROC_STOPPED, get_active_pcb(p1)->state);
-    // NOTE: this number changes based on how many tests/
-    // processes are set up in init.c
-    ASSERT_INT_EQ(29, get_num_stopped_processes());
+    ASSERT_INT_EQ(PROC_STOPPED, p1_pcb->state);
+    ASSERT_INT_EQ(initial_num_stopped, get_num_stopped_processes());
 
     // ======================================================
     // BEGIN SYSSIGHANDLER TESTS
@@ -310,11 +312,11 @@ void _test_signal(void) {
     
     // TEST 8: attempt to signal while a process is blocked sleeping
     // - should return -666
-    LOG("Handler is %x\n", &test_handler);
+    LOG("Handler is %x", &test_handler);
     PID_t p2 = syscreate(register_handler_loop, DEFAULT_STACK_SIZE);
-    LOG("PID is %d\n", p2);
+    LOG("PID is %d", p2);
     syssleep(1000);
-    LOG("Signaling p2: %d with signal 2\n", p2); 
+    LOG("Signaling p2: %d with signal 2", p2);
     ASSERT_INT_EQ(0, syskill(p2, 2));
 
     syssleep(1000);
@@ -344,6 +346,6 @@ void _test_signal(void) {
     // Expect that its return value will not be 0.
     PID_t sleeper = syscreate(sleep_a_while, DEFAULT_STACK_SIZE);
     syssleep(1000);
-    LOG("Calling syskill on sleeper\n");
+    LOG("Calling syskill on sleeper");
     ASSERT_INT_EQ(0, syskill(sleeper, 5));
 }

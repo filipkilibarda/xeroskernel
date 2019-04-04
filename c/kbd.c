@@ -104,7 +104,7 @@ void        _test_keyboard(void);
 int keyboard_open(PID_t pid) {
 
     if (is_locked()) {
-        LOG("Keyboard is already in use!, holding_pid is %d\n", holding_pid);
+        LOG("Keyboard is already in use!, holding_pid is %d", holding_pid);
         return 0;
     }
 
@@ -124,7 +124,7 @@ int keyboard_open_echoing(PID_t pid) {
     // TODO: Unnecessarily duplicated code, just call keyboard_open above
 
     if (is_locked()) {
-        LOG("Keyboard is already in use!, holding_pid is %d\n", holding_pid);
+        LOG("Keyboard is already in use!, holding_pid is %d", holding_pid);
         return 0;
     }
 

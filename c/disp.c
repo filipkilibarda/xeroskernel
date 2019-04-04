@@ -209,7 +209,7 @@ extern void dispatch(void) {
                     notify_dependent_processes(process_pcb);
                     remove_from_ipc_queues(process_pcb);
 
-                    LOG("Pulling from sleep list\n", NULL);
+                    LOG("Pulling from sleep list");
                     pull_from_sleep_list(process_pcb);
                     enqueue_in_ready(process_pcb);
                     signal(pid, signalNumber);
