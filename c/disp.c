@@ -174,6 +174,9 @@ extern void dispatch(void) {
                 pid = GET_ARG(PID_t, 0);
                 signalNumber = GET_ARG(int, sizeof(PID_t));
                 process->ret_value = kill(pid, signalNumber);
+
+                LOG("Signal %d sent %d->%d RC %d", signalNumber, process->pid,
+                        pid, process->ret_value);
                 enqueue_in_ready(process);
                 process = dequeue_from_ready();
                 break;
@@ -232,8 +235,11 @@ extern void dispatch(void) {
                 oldHandler = GET_ARG(funcptr_t *, sizeof(funcptr_t) + sizeof(int));
          
                 // Check that signal number is valid
-                if (!is_valid_signal_num(signalNumber) || signalNumber == 31)
+                if (!is_valid_signal_num(signalNumber) || signalNumber == 31) {
+                    LOG("Invalid signal %d; can't change handler",
+                            signalNumber);
                     process->ret_value = -1;
+                }
 
                 // Check that newHandler is in valid memory space
                 else if (((int) newHandler > HOLESTART && (int) newHandler < HOLEEND)
@@ -249,7 +255,8 @@ extern void dispatch(void) {
                     *oldHandler = old_func;
                     process->sig_handlers[signalNumber] = newHandler;
                     process->ret_value = 0;
-                    kprintf("Successfully registered new handler!\n");
+                    LOG("Registered handler %d for proc %d", signalNumber,
+                            process->pid);
                 }
 
                 enqueue_in_ready(process);

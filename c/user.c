@@ -57,7 +57,7 @@ void simple_process(void) {
  * Test that syscreate returns the PID on success and -1 on failure.
  **/
 void test_syscreate_return_value(void) {
-    kprintf("\n======Starting test for syscreate_return_value======\n");
+    LOG("==== Starting test for syscreate_return_value ====");
 
     int original_num = num_ready_processes();
 
@@ -68,6 +68,7 @@ void test_syscreate_return_value(void) {
     ASSERT_INT_EQ(PROC_READY, get_state(pid));
 
     ASSERT_INT_EQ(0, syskill(pid, 31));
+    syswait(pid);
     ASSERT_INT_EQ(PROC_STOPPED, get_state(pid));
     ASSERT_INT_EQ(original_num, num_ready_processes());
 }

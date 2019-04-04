@@ -186,7 +186,7 @@ unsigned long get_sig_mask(int signalNumber) {
  * Return 0 otherwise
  */
 int is_valid_signal_num(int signalNumber) {
-    return 0 <= signalNumber || signalNumber < MAX_SIGNALS;
+    return 0 <= signalNumber && signalNumber < MAX_SIGNALS;
 }
 
 
@@ -309,8 +309,6 @@ void sleep_a_while(void) {
  * Test the signal functionality
  */
 void _test_signal(void) {
-    kprintf("Starting signal tests\n");
-
     int initial_num_stopped = get_num_stopped_processes();
 
     // A basic test of syssigkill() functionality 
