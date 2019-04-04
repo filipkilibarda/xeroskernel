@@ -67,7 +67,7 @@ void test_syscreate_return_value(void) {
     ASSERT(pid >= 0, "Expected PID to be greater than 0");
     ASSERT_INT_EQ(PROC_READY, get_state(pid));
 
-    syskill(pid, 31);
+    ASSERT_INT_EQ(0, syskill(pid, 31));
     ASSERT_INT_EQ(PROC_STOPPED, get_state(pid));
     ASSERT_INT_EQ(original_num, num_ready_processes());
 }

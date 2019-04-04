@@ -27,7 +27,7 @@ void init_signal_context(pcb *process_to_signal);
 // each mask is indexed to turn on/off a single bit 
 // starting from the rightmost bit (signal 0) to 
 // leftmost bit (signal 31)
-unsigned long sig_masks[32] =
+unsigned long sig_masks[MAX_SIGNALS] =
 {0x00000001, 0x00000002, 0x00000004, 0x00000008, 
 0x00000010, 0x00000020, 0x00000040, 0x00000080, 
 0x00000100, 0x00000200, 0x00000400, 0x00000800, 
@@ -158,7 +158,7 @@ void init_signal_context(pcb *process_to_signal) {
  */
 int get_highest_signal_number(unsigned long sig_mask) {
     int highest_so_far = 0;
-    for (int i = 0; i < 32; i ++) {
+    for (int i = 0; i < MAX_SIGNALS; i ++) {
         int mask = sig_mask;
         mask = mask & sig_masks[i];
         if (mask > highest_so_far) {
@@ -186,8 +186,7 @@ unsigned long get_sig_mask(int signalNumber) {
  * Return 0 otherwise
  */
 int is_valid_signal_num(int signalNumber) {
-    // TODO: Un-hardcode the 32
-    return 0 <= signalNumber || signalNumber < 32;
+    return 0 <= signalNumber || signalNumber < MAX_SIGNALS;
 }
 
 

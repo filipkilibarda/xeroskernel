@@ -75,6 +75,7 @@ typedef unsigned int size_t; /* Something that can hold the value of
 //  that's why I'm choosing 2 here.
 #define MAX_DEVICES 2
 #define MAX_OPEN_FILES 4
+#define MAX_SIGNALS 32
 
 // TODO: Total guess. I just don't feel like figuring out how many
 //  milliseconds I should actually put here right now.
@@ -158,7 +159,7 @@ struct pcb_s {
     PID_t receiving_from_pid; // PID that this is blocked receiving from.
     PID_t sending_to_pid;     // PID that this is blocked sending to.
     PID_t waiting_for;
-    void *sig_handlers[32];   // TODO: Un-hardcode this, use #define var
+    void *sig_handlers[MAX_SIGNALS];
     unsigned long sig_mask;
     int sig_prio;             // Current highest priority signal
     pcb_queue waiter_queue;   // pcbs wanting to wait for this to end.

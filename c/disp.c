@@ -232,10 +232,8 @@ extern void dispatch(void) {
                 oldHandler = GET_ARG(funcptr_t *, sizeof(funcptr_t) + sizeof(int));
          
                 // Check that signal number is valid
-                // TODO: Un-hardcode this, but also make sure that whatever
-                //  you do still makes sure the user is not trying to
-                //  override signal 31
-                if (signalNumber < 0 || signalNumber > 30) process->ret_value = -1;
+                if (!is_valid_signal_num(signalNumber) || signalNumber == 31)
+                    process->ret_value = -1;
 
                 // Check that newHandler is in valid memory space
                 else if (((int) newHandler > HOLESTART && (int) newHandler < HOLEEND)

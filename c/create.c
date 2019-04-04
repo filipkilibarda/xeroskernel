@@ -111,7 +111,7 @@ pcb *setup_process(void (*func)(void), int stack_size, int priority) {
     fdt_constructor(free_pcb->fdt);
 
     // Initialize all signal handlers to NULL
-    for (int i = 0; i < 31; i++) {
+    for (int i = 0; i < MAX_SIGNALS; i++) {
         free_pcb->sig_handlers[i] = NULL;
     }
     
