@@ -133,8 +133,8 @@ extern void dispatch(void) {
                 // before all the general purpose registers are pushed. So it
                 // points to the EIP of the interrupted process. Here we get
                 // the first argument passed to syscreate (the function pointer)
-                process_func_ptr = *((void **) (process->eip_ptr + 24));
-                stack_size = *((int *) (process->eip_ptr + 28));
+                process_func_ptr = GET_ARG(void *, 0);
+                stack_size = GET_ARG(int, sizeof(void *));
                 process->ret_value = create(process_func_ptr, stack_size);
                 break;
 
@@ -164,7 +164,7 @@ extern void dispatch(void) {
 
             case SYSCALL_PUTS:
                 // Obtain message and print to screen
-                message = *((char **) (process->eip_ptr + 24));
+                message = GET_ARG(char *, 0);
                 kprintf(message);
                 enqueue_in_ready(process);
                 process = dequeue_from_ready();
@@ -172,8 +172,8 @@ extern void dispatch(void) {
 
             case SYSCALL_KILL:
                 // Obtain PID to send signal, and signalNumber
-                pid = *((PID_t *) (process->eip_ptr + 24));
-                signalNumber = *((int *) (process->eip_ptr + 28)); 
+                pid = GET_ARG(PID_t, 0);
+                signalNumber = GET_ARG(int, sizeof(PID_t)); 
                 
                 // Make sure pid to send to exists
                 pcb *process_pcb = get_pcb(pid);
@@ -216,7 +216,7 @@ extern void dispatch(void) {
 
             case SYSCALL_SET_PRIO:
                 // Get requested priority
-                priority = *((int *) (process->eip_ptr + 24));
+                priority = GET_ARG(int, 0);
 
                 // Check for valid priority
                 if (priority < -1 || priority > 3) {
@@ -239,31 +239,31 @@ extern void dispatch(void) {
 
             case SYSCALL_SLEEP:
                 // Obtain time to sleep for and sleep
-                milliseconds = *((unsigned int *) (process->eip_ptr + 24));
+                milliseconds = GET_ARG(unsigned int, 0);
                 sleep(process, milliseconds);
                 process = dequeue_from_ready();
                 break;
 
             case SYSCALL_SEND:
                 // Obtain PID and data and call send
-                pid = *((PID_t*) (process->eip_ptr + 24));
-                data = *((unsigned long*) (process->eip_ptr + 28));
+                pid = GET_ARG(PID_t, 0);
+                data = GET_ARG(unsigned long, sizeof(PID_t));
                 send(process, pid, data);
                 process = dequeue_from_ready();
                 break;
 
             case SYSCALL_RECV:
                 // Obtain PID and number buffers and call recv
-                pid_ptr = *((PID_t**) (process->eip_ptr + 24));
-                num = *((unsigned long**) (process->eip_ptr + 28));
+                pid_ptr = GET_ARG(PID_t *, 0);
+                num = GET_ARG(unsigned long *, sizeof(PID_t *));
                 recv(process, pid_ptr, num);
                 process = dequeue_from_ready();
                 break;
 
             case SYSCALL_SIG_HANDLER:
-                signalNumber = *((int *) (process->eip_ptr + 24));
-                newHandler = *((funcptr_t *) (process->eip_ptr + 28));
-                oldHandler = *((funcptr_t **) (process->eip_ptr + 32));
+                signalNumber = GET_ARG(int, 0);
+                newHandler = GET_ARG(funcptr_t, sizeof(int));
+                oldHandler = GET_ARG(funcptr_t *, sizeof(funcptr_t) + sizeof(int));
          
                 // Check that signal number is valid
                 if (signalNumber < 0 || signalNumber > 30) process->ret_value = -1;
@@ -290,7 +290,7 @@ extern void dispatch(void) {
                 break;
 
             case SYSCALL_SIG_RETURN:
-                old_sp = *((void **) (process->eip_ptr + 24));
+                old_sp = GET_ARG(void *, 0);
                 
                 // Determine which signal was just sent and reset its bit in mask
                 signalNumber = *((int *) (process->eip_ptr - 4));
@@ -312,7 +312,7 @@ extern void dispatch(void) {
                 break;
             
             case SYSCALL_WAIT:
-                pid = *((PID_t *) (process->eip_ptr + 24));
+                pid = GET_ARG(PID_t, 0);
                 valid_pid = is_valid_pid(pid);
                 if (valid_pid == -1 || pid == 0) {
                     process->ret_value = -1;
@@ -341,7 +341,7 @@ extern void dispatch(void) {
                 break;
 
             case SYSCALL_GET_CPU_TIMES:
-                proc_stats = *((process_statuses **)(process->eip_ptr + 24));
+                proc_stats = GET_ARG(process_statuses *, 0);
                 process->ret_value = get_cpu_times(proc_stats);
                 enqueue_in_ready(process);
                 process = dequeue_from_ready();

@@ -153,12 +153,6 @@ int keyboard_write(void *void_buff, unsigned int bufflen) {
     return -1;
 }
 
-/**
- * Clears the information stored in the reader_metadata struct 
- **/
-void clear_reader_metadata(void) {
-
-}
 
 /**
  * Read from the keyboard. This function is referenced in the keyboard device
