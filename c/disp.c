@@ -109,7 +109,6 @@ extern void dispatch(void) {
     funcptr_t *oldHandler;        // used in SYSCALL_SIG_HANDLER
     void *old_sp;                 // used in SYSCALL_SIGRETURN
     int kill_result;
-    int bytes_written;
     int fd;
     unsigned int device_no;
     char *buff;
@@ -314,20 +313,9 @@ extern void dispatch(void) {
                 fd = GET_ARG(int, 0);
                 buff = GET_ARG(char *, sizeof(int));
                 bufflen = GET_ARG(unsigned int, sizeof(int) + sizeof(char *));
-
-                // TODO: Already done in di_calls
-                if (bufflen <= 0 || buff == NULL) process->ret_value = -1;
-                // TODO Don't hardcode the fd check! This check is
-                //  already done in di_write
-                else if (fd < 0 || fd > 3) process->ret_value = -1;
-                else {
-                    bytes_written = di_write(process, fd, buff, bufflen);
-                    process->ret_value = bytes_written;
-                }
-
+                process->ret_value = di_write(process, fd, buff, bufflen);
                 enqueue_in_ready(process);
                 process = dequeue_from_ready();
-
                 break;
 
             case SYSCALL_IOCTL:
