@@ -10,25 +10,8 @@
 pcb *sleep_delta_list = NULL;
 
 // Testing methods
-pcb *init_test_pcb(unsigned int milliseconds);
+static pcb *init_test_pcb();
 
-void _sleep_test(void);
-
-void _test_time_slice(void);
-
-/**
- * Used as a wrapper for running the sleep tests
- **/
-void test_sleep(void) {
-    RUN_TEST(_sleep_test);
-}
-
-/**
- * Used as a wrapper for running time slice test
- */
-void test_time_slice(void) {
-    RUN_TEST(_test_time_slice);
-}
 
 /**
  * Adds a given process to its spot in the sleep queue.
@@ -162,7 +145,7 @@ void print_sleep_list(void) {
  * - PCB removed from delta list after sufficient number of quantums. 
  * - PCB added back correctly to ready queue.
  **/
-void _sleep_test(void) {
+void test_sleep(void) {
     // TEST 1: Create 4 PCBs with different sleep times,
     // add them to sleep queue.
     // Ensure that they get added in the correct order.
@@ -219,6 +202,8 @@ void _sleep_test(void) {
     sleep(pcb_3, pcb_3->sleep_time);
     sleep(pcb_4, pcb_4->sleep_time);
 
+    ASSERT_INT_EQ(4, get_length_pcb_list(sleep_delta_list));
+
     for (int i = 0; i < 5; i++) {
         tick();
     }
@@ -265,6 +250,7 @@ void print_loop_one(void) {
     }
 }
 
+
 /**
  * Loops and prints "Hello, process 2"
  * Used to test time slicing
@@ -275,16 +261,18 @@ void print_loop_two(void) {
     }
 }
 
+
 /**
  * Tests time slicing by creating two infinite loop
  * processes that print messages. If time slicing works
  * the messages should eventually alternate when a timer 
  * interrupt goes off.
  */
-void _test_time_slice(void) {
+void test_time_slice(void) {
     create(print_loop_one, DEFAULT_STACK_SIZE);
     create(print_loop_two, DEFAULT_STACK_SIZE);
 }
+
 
 /**
  * Helpful function for creating PCBs to be used in 
@@ -298,5 +286,7 @@ pcb *init_test_pcb(unsigned int milliseconds) {
     test_pcb->sleep_time = milliseconds;
     test_pcb->priority = 3;
     test_pcb->next = NULL;
+    test_pcb->sending_to_pid = NULL;
+    test_pcb->receiving_from_pid = NULL;
     return test_pcb;
 }

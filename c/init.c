@@ -38,48 +38,28 @@ void initproc(void) {
 
     kprintf("\n\nCPSC 415, 2018W2 \n32 Bit Xeros -21.0.0 - "
             "even before beta \nLocated at: %x to %x\n",
-             &entry, &end);
+            &entry, &end);
 
     // Initialize memory layout
     kmeminit();
-    kprintf("memory inited\n");
-    //RUN_TEST(test_memory_manager);
+    RUN_TEST(test_memory_manager);
 
     // Initialize PCB array
     pcb_init();
-    kprintf("dispatcher inited\n");
-    //RUN_TEST(test_dispatcher);
+    RUN_TEST(test_dispatcher);
+    RUN_TEST(test_sleep);
 
-    // Test sleep functionality
-    //test_sleep();
-    // Test time slicing functionality
-    //test_time_slice();
-
-    // Set entry point for ISR
     contextinit();
-    kprintf("context inited\n");
-
     init_ipc();
     init_device_table();
 
     create_idle_process();
-    //create(test_kb, DEFAULT_STACK_SIZE);
-    // Test IPC functionality
     create(test_ipc, DEFAULT_STACK_SIZE);
-    //create(test_signal, DEFAULT_STACK_SIZE);
-    //kprintf("\n");
-    //kprintf("==========================\n");
-    //kprintf("Extended producer-consumer\n");
-    //kprintf("==========================\n");
-    //create(root, DEFAULT_STACK_SIZE);
-//    create(init_program, DEFAULT_STACK_SIZE);
-    
-    // Call dispatcher to start running
-    dispatch();
+//    create(root, DEFAULT_STACK_SIZE);
 
-    kprintf("\n\nWhen your  kernel is working properly ");
-    kprintf("this line should never be printed!\n");
-    for(;;); /* loop forever */
+    // Start scheduling processes!
+    dispatch();
+    FAIL("Should never reach this! Dispatcher should never return.");
 }
 
 
