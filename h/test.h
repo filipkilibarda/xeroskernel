@@ -27,6 +27,8 @@
 
 // This turns on the tests
 #define TESTING
+// This makes it such that successful assertions are logged
+//#define PRINT_ASSERT_CONFIRMATION
 
 // Helper for including variadic args in macros
 #define VA_ARGS(...) , ##__VA_ARGS__
@@ -109,6 +111,15 @@
 #endif
 
 
+#ifdef PRINT_ASSERT_CONFIRMATION
+#define LOG_ASSERTION_SUCCESS(message, ...) do {\
+    LOG(message VA_ARGS(__VA_ARGS__));\
+} while(0)
+#else
+#define LOG_ASSERTION_SUCCESS(message, ...)
+#endif
+
+
 /**
  * Check the given condition and stop the CPU (infinite loop) if it fails. E.g.,
  *      ASSERT(1 != 1, "Never passes")
@@ -128,7 +139,7 @@
     if (minunit_tmp_e != minunit_tmp_r) {\
         FAILL("%d expected but was %d", minunit_tmp_e, minunit_tmp_r);\
     } else {\
-        LOG("Got %d as expected", expected);\
+        LOG_ASSERTION_SUCCESS("Got %d as expected", expected);\
     }\
 } while(0)
 
@@ -141,7 +152,7 @@
     if (minunit_tmp_e == minunit_tmp_r) {\
         FAILL("%d: didn't expect %d", minunit_tmp_e, minunit_tmp_r);\
     } else {\
-        LOG("NEQ %d assertion passed!", expected);\
+        LOG_ASSERTION_SUCCESS("NEQ %d assertion passed!", expected);\
     }\
 } while(0)
 
