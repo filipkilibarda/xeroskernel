@@ -262,8 +262,7 @@ extern void dispatch(void) {
 
             case SYSCALL_SIG_RETURN:
                 old_sp = GET_ARG(void *, 0);
-                // The return value will be whatever it was before the
-                // process was signalled
+                // Return value restored to same as before signal handler ran
                 process->ret_value = sigreturn(process, old_sp);
                 enqueue_in_ready(process);
                 process = dequeue_from_ready();
