@@ -145,15 +145,9 @@ extern void dispatch(void) {
                 }
 
                 if (process->state != PROC_STOPPED) {
-                    // TODO: This is weird. We're essentially saying,
-                    //     "if a STOPPED process made a sysstop call"
-                    //  then don't enqueue it in the ready queue.
-                    //  That makes sense, but how can a STOPPED process be
-                    //  making a system call in the first place?
-                    //  Seems like we should actually have a check at the top
-                    //  of the dispatcher loop, checking that the current
-                    //  process is not STOPPED, because it makes no sense for
-                    //  a STOPPED process to be in the dispatch loop?
+                    // This captures the case where a process stops itself.
+                    // Naturally we don't want to put it back on the ready
+                    // queue.
                     enqueue_in_ready(process);
                 }
                 process = dequeue_from_ready();
