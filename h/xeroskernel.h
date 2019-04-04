@@ -260,7 +260,7 @@ void         sysyield(void);
 void         sysstop(void);
 PID_t        sysgetpid(void);
 void         sysputs(char *str);
-int          syskill(PID_t pid, int signalNumber);
+int          syskill(PID_t pid, int signal_num);
 int          syssetprio(int priority);
 int          syssend(PID_t dest_pid, unsigned long num);
 int          sysrecv(PID_t *from_pid, unsigned long * num);
@@ -294,11 +294,11 @@ int  on_sleeper_queue(pcb *process);
 
 
 // signal.c
-int           signal(PID_t pid, int signalNumber);
+int           signal(PID_t pid, int signal_num);
 void          sigtramp(void (*handler)(void *), void *context);
-unsigned long get_sig_mask(int signalNumber);
-int           is_valid_signal_num(int signalNumber);
-int           kill(PID_t pid, int signalNumber);
+unsigned long get_sig_mask(int signal_num);
+int           is_valid_signal_num(int signal_num);
+int           kill(PID_t pid, int signal_num);
 
 
 // di_calls.c

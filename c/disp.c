@@ -103,7 +103,7 @@ extern void dispatch(void) {
     unsigned long *num;           // used in SYSCALL_RECV
     PID_t *pid_ptr;               // used in SYSCALL_RECV
     unsigned long data;           // used in SYSCALL_SEND
-    int signalNumber;             // used in SYSCALL_KILL & SIG_HANDLER
+    int signal_num;               // used in SYSCALL_KILL & SIG_HANDLER
     process_statuses *proc_stats; // used in SYSCALL_GET_CPU_TIMES
     funcptr_t newHandler;         // used in SYSCALL_SIG_HANDLER
     funcptr_t *oldHandler;        // used in SYSCALL_SIG_HANDLER
@@ -172,10 +172,10 @@ extern void dispatch(void) {
 
             case SYSCALL_KILL:
                 pid = GET_ARG(PID_t, 0);
-                signalNumber = GET_ARG(int, sizeof(PID_t));
-                process->ret_value = kill(pid, signalNumber);
+                signal_num = GET_ARG(int, sizeof(PID_t));
+                process->ret_value = kill(pid, signal_num);
 
-                LOG("Signal %d sent %d->%d RC %d", signalNumber, process->pid,
+                LOG("Signal %d sent %d->%d RC %d", signal_num, process->pid,
                         pid, process->ret_value);
                 enqueue_in_ready(process);
                 process = dequeue_from_ready();
@@ -230,14 +230,14 @@ extern void dispatch(void) {
 
             case SYSCALL_SIG_HANDLER:
                 // TODO: Put all this in a helper func
-                signalNumber = GET_ARG(int, 0);
+                signal_num = GET_ARG(int, 0);
                 newHandler = GET_ARG(funcptr_t, sizeof(int));
                 oldHandler = GET_ARG(funcptr_t *, sizeof(funcptr_t) + sizeof(int));
          
                 // Check that signal number is valid
-                if (!is_valid_signal_num(signalNumber) || signalNumber == 31) {
+                if (!is_valid_signal_num(signal_num) || signal_num == 31) {
                     LOG("Invalid signal %d; can't change handler",
-                            signalNumber);
+                            signal_num);
                     process->ret_value = -1;
                 }
 
@@ -251,11 +251,11 @@ extern void dispatch(void) {
 
                 else {
                     // At this point we're good, register new handler
-                    void (*old_func)(void *) = process->sig_handlers[signalNumber];
+                    void (*old_func)(void *) = process->sig_handlers[signal_num];
                     *oldHandler = old_func;
-                    process->sig_handlers[signalNumber] = newHandler;
+                    process->sig_handlers[signal_num] = newHandler;
                     process->ret_value = 0;
-                    LOG("Registered handler %d for proc %d", signalNumber,
+                    LOG("Registered handler %d for proc %d", signal_num,
                             process->pid);
                 }
 
@@ -268,8 +268,8 @@ extern void dispatch(void) {
                 old_sp = GET_ARG(void *, 0);
 
                 // Determine which signal was just sent and reset its bit in mask
-                signalNumber = *((int *) (process->eip_ptr - 4));
-                unsigned long mask = get_sig_mask(signalNumber);
+                signal_num = *((int *) (process->eip_ptr - 4));
+                unsigned long mask = get_sig_mask(signal_num);
                 process->sig_mask = process->sig_mask ^ mask;
 
                 // Restore old return value

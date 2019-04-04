@@ -53,7 +53,7 @@ unsigned long sig_masks[MAX_SIGNALS] =
  *   signal currently being sent, add signal context for that signal
  *   to the stack, and update the mask with the sending signal.
  **/
-int signal(PID_t pid, int signalNumber) {
+int signal(PID_t pid, int signal_num) {
 
     pcb *process_to_signal = get_active_pcb(pid);
 
@@ -64,7 +64,7 @@ int signal(PID_t pid, int signalNumber) {
     }
 
     // Get the handler
-    handler = process_to_signal->sig_handlers[signalNumber];
+    handler = process_to_signal->sig_handlers[signal_num];
 
     // Check if there's already a signal pending
     int pending_signal = 
@@ -72,7 +72,7 @@ int signal(PID_t pid, int signalNumber) {
 
     // Update signal mask (should be done no matter what) 
     process_to_signal->sig_mask = 
-    process_to_signal->sig_mask | sig_masks[signalNumber];
+    process_to_signal->sig_mask | sig_masks[signal_num];
 
     proc_stack = process_to_signal->stack_ptr;
     CS = getCS();
@@ -80,14 +80,14 @@ int signal(PID_t pid, int signalNumber) {
 
     // If there's a pending signal with higher priority,
     // set up its signal context.
-    if (pending_signal > signalNumber) {
+    if (pending_signal > signal_num) {
         signal_code = pending_signal;
         init_signal_context(process_to_signal);
     }
     // Otherwise, check current signal priority to 
     // determine whether to send the signal 
-    else if (process_to_signal->sig_prio < signalNumber) {
-        signal_code = signalNumber;
+    else if (process_to_signal->sig_prio < signal_num) {
+        signal_code = signal_num;
         init_signal_context(process_to_signal);
     }
 
@@ -176,8 +176,8 @@ int get_highest_signal_number(unsigned long sig_mask) {
 /**
  * Returns the signal mask for a specified signal number
  */
-unsigned long get_sig_mask(int signalNumber) {
-    return sig_masks[signalNumber];
+unsigned long get_sig_mask(int signal_num) {
+    return sig_masks[signal_num];
 }
 
 
@@ -185,8 +185,8 @@ unsigned long get_sig_mask(int signalNumber) {
  * Return 1 if the given signal number is valid.
  * Return 0 otherwise
  */
-int is_valid_signal_num(int signalNumber) {
-    return 0 <= signalNumber && signalNumber < MAX_SIGNALS;
+int is_valid_signal_num(int signal_num) {
+    return 0 <= signal_num && signal_num < MAX_SIGNALS;
 }
 
 
@@ -195,7 +195,7 @@ int is_valid_signal_num(int signalNumber) {
  *
  * Sends a signal to a process (doesn't necessarily kill it).
  */
-int kill(PID_t pid, int signalNumber) {
+int kill(PID_t pid, int signal_num) {
 
     // Make sure pid to send to exists
     pcb *receiving_process = get_active_pcb(pid);
@@ -229,14 +229,14 @@ int kill(PID_t pid, int signalNumber) {
         pull_from_sleep_list(receiving_process);
         enqueue_in_ready(receiving_process);
 
-        signal(pid, signalNumber);
+        signal(pid, signal_num);
         return 0;
 
-    } else if (!is_valid_signal_num(signalNumber)) {
+    } else if (!is_valid_signal_num(signal_num)) {
         return -583;
 
     } else {
-        signal(pid, signalNumber);
+        signal(pid, signal_num);
         return 0;
     }
 }

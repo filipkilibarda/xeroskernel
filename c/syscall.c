@@ -89,14 +89,14 @@ void sysputs(char *str) {
 }
 
 /**
- * Sends a signal (signalNumber) to the specified process
+ * Sends a signal (signal_num) to the specified process
  *
  * Returns 0 on success, -514 is PID does not exist,
  * -583 if signal number is invalid.
  * It is OK for a process to kill itself.
  */
-int syskill(PID_t pid, int signalNumber) {
-    return syscall(SYSCALL_KILL, pid, signalNumber);
+int syskill(PID_t pid, int signal_num) {
+    return syscall(SYSCALL_KILL, pid, signal_num);
 }
 
 /** Sets the priority to a value between 0 and 3, inclusive
