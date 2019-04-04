@@ -20,26 +20,28 @@
 #define KEY_UP   0x80            /* If this bit is on then it is a key   */
                                  /* up event instead of a key down event */
 
-/* Control code */
+/* Control codes */
 #define LSHIFT  0x2a
 #define RSHIFT  0x36
 #define LMETA   0x38
 #define LCTL    0x1d
 #define CAPSL   0x3a
 
+#define ENTER   10              // Enter key ASCII code
+
 /* scan state flags */
-#define INCTL           0x01    /* control key is down          */
-#define INSHIFT         0x02    /* shift key is down            */
-#define CAPSLOCK        0x04    /* caps lock mode               */
-#define INMETA          0x08    /* meta (alt) key is down       */
-#define EXTENDED        0x10    /* in extended character mode   */
+#define INCTL           0x01         /* control key is down        */
+#define INSHIFT         0x02         /* shift key is down          */
+#define CAPSLOCK        0x04         /* caps lock mode             */
+#define INMETA          0x08         /* meta (alt) key is down     */
+#define EXTENDED        0x10         /* in extended character mode */
 
-#define EXTESC          0xe0    /* extended character escape    */
-#define NOCHAR  256
+#define EXTESC          0xe0         /* extended character escape  */
+#define NOCHAR  256                  /* indicates no character     */
 
-static  int     state;       /* the state of the keyboard */
-static  int     echoing = 1; /* indicates if the keyboard is echoing or not*/
-static  int     eof_indicator; // TODO: Should use this everywhere I currently use '\0'
+static  int     state;               /* the state of the keyboard */
+static  int     echoing = 1;         /* indicates if the keyboard is echoing */
+static  int     eof_indicator = 0x4; /* stores the current EOF */
 
 // The pid that's currently holding the keyboard device
 // 0 if no process has opened the keyboard
@@ -85,7 +87,7 @@ static int  is_locked(void);
 void        put_in_buffer(unsigned char ascii);
 int         copy_from_kernel_buff(char *buff, unsigned long bufflen, 
 unsigned long num_read);
-void _test_keyboard(void);
+void        _test_keyboard(void);
 
 
 
@@ -94,7 +96,7 @@ void _test_keyboard(void);
  * ======================================================== */
 
 /**
- * Enable interrupts from the keyboard.
+ * Enable interrupts from the silent keyboard.
  *
  * Return 0 if failed to open keyboard.
  * Return 1 otherwise.
@@ -113,7 +115,7 @@ int keyboard_open(PID_t pid) {
 }
 
 /**
- * Enable interrupts from the keyboard.
+ * Enable interrupts from the echoing keyboard.
  *
  * Return 0 if failed to open keyboard.
  * Return 1 otherwise.
@@ -140,7 +142,6 @@ int keyboard_open_echoing(PID_t pid) {
 int keyboard_close(int fd) {
     enable_irq(KEYBOARD_IRQ, 1);
     holding_pid = 0;
-    //LOG("Keyboard closed!");
     return 1;
 }
 
@@ -152,17 +153,23 @@ int keyboard_write(void *void_buff, unsigned int bufflen) {
     return -1;
 }
 
+/**
+ * Clears the information stored in the reader_metadata struct 
+ **/
+void clear_reader_metadata(void) {
+
+}
 
 /**
  * Read from the keyboard. This function is referenced in the keyboard device
  * structure and constitutes the upper half of the keyboard driver.
  *
- * TODO: We *might* need two upper halves for the two types of keyboard drivers.
- * TODO: I feel like the device driver doesn't need to know about processes.
- *       It should just know about buffers?
+ * Returns: 
+ * -1 if process blocked
+ * 0 if EOF was pressed
+ * 1 if read finished successfully 
  */
 int keyboard_read(void *_buff, unsigned int bufflen) {
-    //kprintf("In keyboard read, setting things up!\n");
     pcb *reading_process = get_pcb(holding_pid);
     ASSERT(reading_process != NULL, "did not get the process correctly\n");
     char *buff = (char *) _buff;
@@ -174,36 +181,49 @@ int keyboard_read(void *_buff, unsigned int bufflen) {
     // result will indicate number of bytes read from kernel buffer
     int result = 
     copy_from_kernel_buff(read_md.buff, read_md.bufflen, read_md.num_read);    
+
+    if (result == -2) {
+        reading_process->ret_value = 0;
+        enqueue_in_ready(reading_process);
+        return 0;
+    } 
+
     read_md.num_read += result;
-   
+    
     // if num_read is less than bufflen, block the process 
     // and update the read_md struct to reflect # read so far
-    if (read_md.num_read < bufflen - 1) {
-        //kprintf("Blocking\n");
+    if (read_md.num_read < bufflen) {
         reading_process->state = PROC_BLOCKED;
+        return -1;
     } else {
+        reading_process->ret_value = read_md.num_read;
         enqueue_in_ready(reading_process);
+        return 1;
     }
 
-    return 0;
 }
 
 
 /**
  * Interface for non-standard interactions with the keyboard device.
+ * 
+ * Returns 0 on success, -1 on failure. 
  */
 int keyboard_ioctl(int command, va_list ap) {
     int new_eof;
 
     switch(command) {
         case 53:
+            // Sets new EOF 
             new_eof = va_arg(ap, int);
             eof_indicator = new_eof;
             break;
         case 55:
+            // Turns off echoing
             echoing = 0;
             break;
         case 56:
+            // Turns on echoing
             echoing = 1;
             break;
         default:
@@ -255,8 +275,8 @@ static int is_locked(void) {
 
 /**
  * Checks to see if there is a process blocked waiting
- * on a read from the keyboard. If there is, it copies the
- * data from the kernel buffer into the process' buffer.
+ * on a read from the keyboard. If there is, it copies any
+ * data currently in the kernel buffer into the process' buffer.
  * If the number of bytes the process wished to read is 
  * met, then the process will get added back to the ready queue. 
  * Otherwise, the process stays blocked. 
@@ -269,15 +289,16 @@ void notify_upper_half(void) {
         int result = 
         copy_from_kernel_buff(read_md.buff, read_md.bufflen, read_md.num_read);
         // if we've now read enough bytes into our buffer, add to ready
-        if (result != -1) {
+        if (result == -2) {
+            read_md.process->ret_value = 0;
+            enqueue_in_ready(read_md.process);
+        }
+        else if (result != -1) {
             read_md.num_read += result;
-            //kprintf("Num_read is: %d\n", read_md.num_read);
-            if (read_md.num_read == read_md.bufflen - 1) {
-                //kprintf("Enqueueing back, read enough!\n");
-                read_md.buff[read_md.bufflen - 1] = '\0';
+            if (read_md.num_read == read_md.bufflen) {
                 enqueue_in_ready(read_md.process);
             }
-        }
+        } 
     }
 }
 
@@ -286,7 +307,8 @@ void notify_upper_half(void) {
  * provided buffer. 
  * 
  * Returns the number of bytes read into the buffer from
- * the kernel buffer, or -1 if enter was pressed. 
+ * the kernel buffer, -1 if enter was pressed, or -2 if 
+ * current EOF indicator was pressed.  
  */
 int copy_from_kernel_buff(char *buff, unsigned long bufflen, 
 unsigned long num_read) {
@@ -295,20 +317,36 @@ unsigned long num_read) {
 
     for (int i = 0; i < KEYBOARD_BUFFLEN; i++) {
         if (kernel_buff[i] != NULL) {
-            if (kernel_buff[i] != 10) {
+            // We don't want to put eof into buffer
+            if (kernel_buff[i] != eof_indicator) {
                 buff[num_read + i] = kernel_buff[i];
                 bytes_read++;
             }
-            char copy = kernel_buff[i];
-            
+
+            char read_char = kernel_buff[i];
             kernel_buff[i] = NULL;
-            if (copy == 10) {
-                read_md.buff[read_md.num_read + bytes_read] = '\0';
+
+            if (read_char == ENTER) {
                 read_md.process->ret_value = read_md.num_read + bytes_read;
                 enqueue_in_ready(read_md.process);
                 return -1;
+            } else if (read_char == eof_indicator) {
+                // Disable the keyboard at this point, 
+                // return indication that EOF was entered
+                enable_irq(KEYBOARD_IRQ, 1);
+                // Set FDT entry to NULL
+                pcb *process = get_pcb(holding_pid);
+                // NOTE: this is hacky as hell 
+                process->fdt[0].device = NULL;
+                process->fdt[1].device = NULL;
+                holding_pid = 0;
+
+                return -2;
             }
+
         } else {
+            // If we reach this branch, there
+            // wasn't anything in the kernel buffer.
             break;
         }
     }
@@ -342,7 +380,8 @@ void read_char(void) {
         unsigned char ascii = convert_to_ascii(data);
         
         // If we're an echoing keyboard, we'll print 
-        if (echoing && ascii != NOCHAR) kprintf("%c", ascii);
+        if (echoing && ascii != NOCHAR && ascii != eof_indicator) 
+        kprintf("%c", ascii);
 
         // Put the ASCII character into the kernel buffer
         if (ascii != NOCHAR) {
@@ -368,14 +407,6 @@ void put_in_buffer(unsigned char ascii) {
 }
 
 
-static int
-extchar(code)
-unsigned char   code;
-{
-        state &= ~EXTENDED;
-}
-
-
 /**
  * Returns the correct ASCII representation of a given scancode
  * Lots of bit **wizardry**
@@ -383,8 +414,6 @@ unsigned char   code;
 unsigned int convert_to_ascii(unsigned char code) {
    unsigned int    ch;
   
-  if (state & EXTENDED)
-    return extchar(code);
   if (code & KEY_UP) {
     switch (code & 0x7f) {
     case LSHIFT:
@@ -392,7 +421,6 @@ unsigned int convert_to_ascii(unsigned char code) {
       state &= ~INSHIFT;
       break;
     case CAPSL:
-      //kprintf("Capslock off detected\n");
       state &= ~CAPSLOCK;
       break;
     case LCTL:
@@ -412,20 +440,15 @@ unsigned int convert_to_ascii(unsigned char code) {
   case LSHIFT:
   case RSHIFT:
     state |= INSHIFT;
-    //kprintf("shift detected!\n");
     return NOCHAR;
   case CAPSL:
     state |= CAPSLOCK;
-    //kprintf("Capslock ON detected!\n");
     return NOCHAR;
   case LCTL:
     state |= INCTL;
     return NOCHAR;
   case LMETA:
     state |= INMETA;
-    return NOCHAR;
-  case EXTESC:
-    state |= EXTENDED;
     return NOCHAR;
   }
   

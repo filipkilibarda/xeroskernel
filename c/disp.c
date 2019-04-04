@@ -118,6 +118,7 @@ extern void dispatch(void) {
     unsigned int bufflen;
     va_list ap;
     unsigned long command;
+    int result;
 
 
     // Grab the first process to service
@@ -180,19 +181,19 @@ extern void dispatch(void) {
                 process->ret_value = -514;
 
                 // If process to signal is blocked, set its return value to
-                // -666
+                // -666, unless it is sleeping
                 else if (process_pcb->state == PROC_BLOCKED) {
                     if (on_sleeper_queue(process_pcb) == -1)
                     process_pcb->ret_value = -666;
+                    
                     process_pcb->state = PROC_READY;
-                    // TODO: how do we determine which process it was blocked on?
-                    // Since we need to pull it from any queues it might have been on
-                    // I think I can just repurpose this function!
                     process_pcb->receiving_from_pid = NULL;
                     process_pcb->sending_to_pid = NULL;
+                    // Pull from any blocked queues process could be on, 
+                    // and notify any processes that might be waiting on this 
+                    // process. 
                     notify_dependent_processes(process_pcb);
                     remove_from_ipc_queues(process_pcb);
-                    //LOG("Pulling from sleep list\n", NULL);
                     pull_from_sleep_list(process_pcb);
                     enqueue_in_ready(process_pcb);
                     signal(pid, signalNumber);
@@ -311,11 +312,9 @@ extern void dispatch(void) {
                 break;
             
             case SYSCALL_WAIT:
-            //LOG("Doing a syswait\n", NULL);
                 pid = *((PID_t *) (process->eip_ptr + 24));
                 valid_pid = is_valid_pid(pid);
                 if (valid_pid == -1 || pid == 0) {
-                    //LOG("Invalid pid: %d\n", pid);
                     process->ret_value = -1;
                     enqueue_in_ready(process);
                 }
@@ -374,11 +373,13 @@ extern void dispatch(void) {
                 bufflen = GET_ARG(unsigned int, sizeof(int) + sizeof(char *));
 
                 if (bufflen <= 0 || buff == NULL) process->ret_value = -1;
+                // TODO: check that fd doing read on is actually open
                 else if (fd < 0 || fd > 3) process->ret_value = -1;
                 else {
-                    di_read(process, fd, buff, bufflen);
+                    result = di_read(process, fd, buff, bufflen);
+                    if (result == -2) process->ret_value = 0;
+                    else process->ret_value = result;
                 }
-
                 
                 process = dequeue_from_ready();
 

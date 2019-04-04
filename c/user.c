@@ -258,8 +258,8 @@ extern void idleproc(void) {
  * correct user and password.
  */
 int verify_user(char *user, char *pass) {
-    if (strcmp(user, "cs415") == 0 && 
-    strcmp(pass, "EveryonegetsanA") == 0) {
+    if (strcmp(user, "cs415\n") == 0 && 
+    strcmp(pass, "EveryonegetsanA\n") == 0) {
         //kprintf("%s\n", pass);
         return 0;
     }
@@ -392,13 +392,17 @@ void a(int milliseconds, char *buff) {
  */
 int does_command_exist(char *buff) {
 
-    if (strcmp(buff, "ps") == 0) return 0;
+    if (strncmp(buff, "ps", 2) == 0) return 0;
     // TODO: Add check for EOF indicator as command for ex
-    else if (strcmp(buff, "ex") == 0) return 1;
+    else if (strncmp(buff, "ex", 2) == 0) return 1;
     else if (strncmp(buff, "k ", 2) == 0) return 2;
-    else if (strcmp(buff, "t") == 0) return 3;
+    else if (strncmp(buff, "t", 1) == 0) return 3;
     else if (strncmp(buff, "a ", 2) == 0) return 4;
-
+    else {
+        for (int i = 0; i < 2; i++) {
+            kprintf("Char %d was %d\n", i, buff[i]);
+        }
+    }
     return -1;
 }
 
@@ -464,10 +468,11 @@ void shell(void) {
     sysputs("\n");
     sysputs(">");
     char buff[60];
-    sysread(fd, buff, 60);
+    int result = sysread(fd, buff, 60);
     // Determine if buff command is valid
     // if so, return value indicates which command
     // it is. 
+    if (result == 0) ex();
     int command = does_command_exist(buff);
     if (command == -1) {
         sysputs("Command not valid\n");
