@@ -16,7 +16,7 @@ static int       get_free_fd(fdt_entry_t fdt[]);
 static int       is_free(fdt_entry_t *fdt_entry);
 // TODO: See close_fd() (commented out)
 //static void      close_fd(fdt_entry_t *fdt_entry);
-static int       is_valid_fd(pcb *process, int fd);
+static int       file_is_open(pcb *process, int fd);
 static device_t *get_device(int device_no);
 
 
@@ -48,7 +48,7 @@ int di_open(pcb *process, int device_no) {
  * Returns 0 on success, -1 on failure.
  */
 int di_close(pcb *process, int fd) {
-    if (!is_valid_fd(process, fd)) return -1;
+    if (!file_is_open(process, fd)) return -1;
     
     device_t *device = process->fdt[fd].device;
     // TODO: Can simplify this a bit
@@ -71,7 +71,7 @@ int di_close(pcb *process, int fd) {
  * notification from the device driver when the pending read is satisfied.
  */
 int di_read(pcb *process, int fd, char *buff, unsigned int bufflen) {
-    if (!is_valid_fd(process, fd) || buff == NULL || bufflen <= 0)
+    if (!file_is_open(process, fd) || buff == NULL || bufflen <= 0)
         return -1;
     return process->fdt[fd].device->read(buff, bufflen);
 }
@@ -81,7 +81,7 @@ int di_read(pcb *process, int fd, char *buff, unsigned int bufflen) {
  * Writes to the device specified by fd, if it is valid. 
  */
 int di_write(pcb *process, int fd, char *buff, unsigned int bufflen) {
-    if (!is_valid_fd(process, fd) || buff == NULL || bufflen <= 0)
+    if (!file_is_open(process, fd) || buff == NULL || bufflen <= 0)
         return -1;
     return process->fdt[fd].device->write(buff, bufflen); 
 }
@@ -92,7 +92,7 @@ int di_write(pcb *process, int fd, char *buff, unsigned int bufflen) {
  */
 int di_ioctl(pcb *process, int fd, int command, va_list ap) {
 
-    if (!is_valid_fd(process, fd)) 
+    if (!file_is_open(process, fd))
         return -1;
 
     int result = process->fdt[fd].device->ioctl(command, ap);
@@ -123,7 +123,7 @@ int di_ioctl(pcb *process, int fd, int command, va_list ap) {
  *
  * Return 0 otherwise
  */
-static int is_valid_fd(pcb *process, int fd) {
+static int file_is_open(pcb *process, int fd) {
     if (fd < 0 || fd >= MAX_OPEN_FILES)
         return 0;
     if (is_free(&process->fdt[fd]))

@@ -289,18 +289,10 @@ extern void dispatch(void) {
                 break;
 
             case SYSCALL_CLOSE:
-                // TODO: Put all this in a helper func
                 fd = GET_ARG(int, 0);
-                // TODO: Unhardcode
-                if (fd < 0 || fd > 3) {
-                    process->ret_value = -1;
-                } else {
-                    process->ret_value = di_close(process, fd);
-                }
-                
+                process->ret_value = di_close(process, fd);
                 enqueue_in_ready(process);
                 process = dequeue_from_ready();
-
                 break;
 
             case SYSCALL_READ:
