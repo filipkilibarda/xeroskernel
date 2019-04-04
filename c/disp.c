@@ -118,6 +118,7 @@ extern void dispatch(void) {
     unsigned int bufflen;
     va_list ap;
     unsigned long command;
+    int result;
 
 
     // Grab the first process to service
@@ -132,8 +133,8 @@ extern void dispatch(void) {
                 // before all the general purpose registers are pushed. So it
                 // points to the EIP of the interrupted process. Here we get
                 // the first argument passed to syscreate (the function pointer)
-                process_func_ptr = *((void **) (process->eip_ptr + 24));
-                stack_size = *((int *) (process->eip_ptr + 28));
+                process_func_ptr = GET_ARG(void *, 0);
+                stack_size = GET_ARG(int, sizeof(void *));
                 process->ret_value = create(process_func_ptr, stack_size);
                 break;
 
@@ -163,7 +164,7 @@ extern void dispatch(void) {
 
             case SYSCALL_PUTS:
                 // Obtain message and print to screen
-                message = *((char **) (process->eip_ptr + 24));
+                message = GET_ARG(char *, 0);
                 kprintf(message);
                 enqueue_in_ready(process);
                 process = dequeue_from_ready();
@@ -172,8 +173,8 @@ extern void dispatch(void) {
             case SYSCALL_KILL:
                 // TODO: Put all this in a helper function.
                 // Obtain PID to send signal, and signalNumber
-                pid = *((PID_t *) (process->eip_ptr + 24));
-                signalNumber = *((int *) (process->eip_ptr + 28));
+                pid = GET_ARG(PID_t, 0);
+                signalNumber = GET_ARG(int, sizeof(PID_t));
 
                 LOG("Attempting signal #%d %d->%d",
                     signalNumber, process->pid, pid);
@@ -185,7 +186,7 @@ extern void dispatch(void) {
                     process->ret_value = -514;
 
                 // If process to signal is blocked, set its return value to
-                // -666
+                // -666, unless it is sleeping
                 else if (process_pcb->state == PROC_BLOCKED) {
 
                     LOG("Signaling blocked process #%d %d->%d",
@@ -197,12 +198,11 @@ extern void dispatch(void) {
                     // TODO: No need to change the state, enqueue_in_ready
                     //  does that?
                     process_pcb->state = PROC_READY;
-                    // TODO: how do we determine which process it was blocked
-                    //  on?
-                    // Since we need to pull it from any queues it might have
-                    // been on I think I can just repurpose this function!
                     process_pcb->receiving_from_pid = NULL;
                     process_pcb->sending_to_pid = NULL;
+                    // Pull from any blocked queues process could be on,
+                    // and notify any processes that might be waiting on this
+                    // process.
                     // TODO: notify_dependent_processes is used to notify
                     //  dependent processes that the given process has died.
                     //  That is not the case here?
@@ -234,7 +234,7 @@ extern void dispatch(void) {
             case SYSCALL_SET_PRIO:
                 // TODO: Put all this in a helper func
                 // Get requested priority
-                priority = *((int *) (process->eip_ptr + 24));
+                priority = GET_ARG(int, 0);
 
                 // Check for valid priority
                 if (priority < -1 || priority > 3) {
@@ -257,32 +257,32 @@ extern void dispatch(void) {
 
             case SYSCALL_SLEEP:
                 // Obtain time to sleep for and sleep
-                milliseconds = *((unsigned int *) (process->eip_ptr + 24));
+                milliseconds = GET_ARG(unsigned int, 0);
                 sleep(process, milliseconds);
                 process = dequeue_from_ready();
                 break;
 
             case SYSCALL_SEND:
                 // Obtain PID and data and call send
-                pid = *((PID_t*) (process->eip_ptr + 24));
-                data = *((unsigned long*) (process->eip_ptr + 28));
+                pid = GET_ARG(PID_t, 0);
+                data = GET_ARG(unsigned long, sizeof(PID_t));
                 send(process, pid, data);
                 process = dequeue_from_ready();
                 break;
 
             case SYSCALL_RECV:
                 // Obtain PID and number buffers and call recv
-                pid_ptr = *((PID_t**) (process->eip_ptr + 24));
-                num = *((unsigned long**) (process->eip_ptr + 28));
+                pid_ptr = GET_ARG(PID_t *, 0);
+                num = GET_ARG(unsigned long *, sizeof(PID_t *));
                 recv(process, pid_ptr, num);
                 process = dequeue_from_ready();
                 break;
 
             case SYSCALL_SIG_HANDLER:
                 // TODO: Put all this in a helper func
-                signalNumber = *((int *) (process->eip_ptr + 24));
-                newHandler = *((funcptr_t *) (process->eip_ptr + 28));
-                oldHandler = *((funcptr_t **) (process->eip_ptr + 32));
+                signalNumber = GET_ARG(int, 0);
+                newHandler = GET_ARG(funcptr_t, sizeof(int));
+                oldHandler = GET_ARG(funcptr_t *, sizeof(funcptr_t) + sizeof(int));
          
                 // Check that signal number is valid
                 if (signalNumber < 0 || signalNumber > 30) process->ret_value = -1;
@@ -310,8 +310,8 @@ extern void dispatch(void) {
 
             case SYSCALL_SIG_RETURN:
                 // TODO: Put all this in a helper func
-                old_sp = *((void **) (process->eip_ptr + 24));
-                
+                old_sp = GET_ARG(void *, 0);
+
                 // Determine which signal was just sent and reset its bit in mask
                 signalNumber = *((int *) (process->eip_ptr - 4));
                 unsigned long mask = get_sig_mask(signalNumber);
@@ -333,7 +333,7 @@ extern void dispatch(void) {
             
             case SYSCALL_WAIT:
                 // TODO: Put all this in a helper func
-                pid = *((PID_t *) (process->eip_ptr + 24));
+                pid = GET_ARG(PID_t, 0);
                 LOG("Starting syswait %d waiting on %d", process->pid, pid);
 
                 valid_pid = is_valid_pid(pid);
@@ -365,7 +365,7 @@ extern void dispatch(void) {
                 break;
 
             case SYSCALL_GET_CPU_TIMES:
-                proc_stats = *((process_statuses **)(process->eip_ptr + 24));
+                proc_stats = GET_ARG(process_statuses *, 0);
                 process->ret_value = get_cpu_times(proc_stats);
                 enqueue_in_ready(process);
                 process = dequeue_from_ready();
@@ -399,12 +399,14 @@ extern void dispatch(void) {
                 bufflen = GET_ARG(unsigned int, sizeof(int) + sizeof(char *));
 
                 if (bufflen <= 0 || buff == NULL) process->ret_value = -1;
+                // TODO: check that fd doing read on is actually open
                 // TODO Don't hardcode the fd check!
                 else if (fd < 0 || fd > 3) process->ret_value = -1;
                 else {
-                    di_read(process, fd, buff, bufflen);
+                    result = di_read(process, fd, buff, bufflen);
+                    if (result == -2) process->ret_value = 0;
+                    else process->ret_value = result;
                 }
-
                 
                 process = dequeue_from_ready();
 
@@ -453,7 +455,7 @@ extern void dispatch(void) {
 
                 // Ensure we don't enqueue idle process
                 // TODO: Put this in enqueue_in_ready
-                if (process != idle_process) 
+                if (process != idle_process)
                     enqueue_in_ready(process);
 
                 process = dequeue_from_ready();
