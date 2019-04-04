@@ -294,9 +294,11 @@ int  on_sleeper_queue(pcb *process);
 
 
 // signal.c
-int signal(PID_t pid, int signalNumber);
-void sigtramp(void (*handler)(void *), void *context);
+int           signal(PID_t pid, int signalNumber);
+void          sigtramp(void (*handler)(void *), void *context);
 unsigned long get_sig_mask(int signalNumber);
+int           is_valid_signal_num(int signalNumber);
+int           kill(PID_t pid, int signalNumber);
 
 
 // di_calls.c
@@ -315,6 +317,7 @@ void test_sleep(void);
 void test_time_slice(void);
 void test_signal(void);
 void test_kb(void);
+
 
 extern pcb pcb_table[];       // The table of process ctrl blocks
 extern pcb *idle_process;     // Pointer to the idle process

@@ -192,10 +192,10 @@ int is_valid_signal_num(int signalNumber) {
 
 /**
  * Kernel side implementation of the syskill system call.
+ *
+ * Sends a signal to a process (doesn't necessarily kill it).
  */
 int kill(PID_t pid, int signalNumber) {
-
-    LOG("Attempting signal #%d %d->%d", signalNumber, process->pid, pid);
 
     // Make sure pid to send to exists
     pcb *receiving_process = get_active_pcb(pid);
@@ -206,9 +206,6 @@ int kill(PID_t pid, int signalNumber) {
     // If process to signal is blocked, set its return value to -666, unless it
     // is sleeping
     if (is_blocked(receiving_process)) {
-
-        LOG("Signaling blocked process #%d %d->%d",
-            signalNumber, process->pid, pid);
 
         if (!on_sleeper_queue(receiving_process))
             // TODO: There is no guarantee that this return value will stick
@@ -231,18 +228,16 @@ int kill(PID_t pid, int signalNumber) {
         //  left to sleep.
         pull_from_sleep_list(receiving_process);
         enqueue_in_ready(receiving_process);
+
         signal(pid, signalNumber);
-        process->ret_value = 0; // Considered success
-    }
-        // Determine if signalNumber is valid
-        // TODO: un-hardcode this
-    else if (!is_valid_signal_num()) {
-        process->ret_value = -583;
+        return 0;
+
+    } else if (!is_valid_signal_num(signalNumber)) {
+        return -583;
+
     } else {
-        LOG("Successful signal #%d %d->%d",
-            signalNumber, process->pid, pid);
         signal(pid, signalNumber);
-        process->ret_value = 0; // Considered success
+        return 0;
     }
 }
 

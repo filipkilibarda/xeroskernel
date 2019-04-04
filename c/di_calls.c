@@ -14,7 +14,8 @@
 
 static int       get_free_fd(fdt_entry_t fdt[]);
 static int       is_free(fdt_entry_t *fdt_entry);
-static void      close_fd(fdt_entry_t *fdt_entry);
+// TODO: See close_fd() (commented out)
+//static void      close_fd(fdt_entry_t *fdt_entry);
 static int       is_valid_fd(pcb *process, int fd);
 static device_t *get_device(int device_no);
 
@@ -108,9 +109,12 @@ int di_ioctl(pcb *process, int fd, int command, va_list ap) {
 /**
  * Close the given file descriptor table entry.
  */
-static void close_fd(fdt_entry_t *fdt_entry) {
-    fdt_entry->device = NULL;
-}
+ // TODO: Would be nice if all instances of closing a file descriptor went
+ //  through this in case we change the fields in the a file descriptor or
+ //  something.
+//static void close_fd(fdt_entry_t *fdt_entry) {
+//    fdt_entry->device = NULL;
+//}
 
 
 /**
