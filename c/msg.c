@@ -210,7 +210,7 @@ void notify_queue(pcb_queue queue) {
 
 #define SEND(...) ASSERT_INT_EQ(0, syssend(__VA_ARGS__));
 #define RECEIVE(...) ASSERT_INT_EQ(0, sysrecv(__VA_ARGS__));
-#define KILL(...) ASSERT_INT_EQ(0, syskill(__VA_ARGS__));
+#define WAIT(...) ASSERT_INT_EQ(0, syswait(__VA_ARGS__));
 
 
 // Holds the PID of the sender so the receiver knows which PID to receive from
@@ -305,7 +305,7 @@ void _test_ipc(void) {
     ASSERT_INT_EQ(-4, sysrecv(&receiver_pid, (unsigned long *) HOLESTART));
     ASSERT_INT_EQ(-4, sysrecv(&receiver_pid, (unsigned long *) HOLEEND - 1));
     ASSERT_INT_EQ(-4, sysrecv(&receiver_pid, (unsigned long *) NULL));
-    ASSERT_INT_EQ(0, syskill(receiver_pid, 31));
+    WAIT(receiver_pid);
 
     // A simple receive_any test
     // =========================
@@ -316,22 +316,22 @@ void _test_ipc(void) {
     // =============================================
     receiver_pid = create(dying_process, DEFAULT_STACK_SIZE);
     ASSERT_INT_EQ(-1, syssend(receiver_pid, MSG));
-    // Expect -1 from syskill because process should already be dead.
-    ASSERT_INT_EQ(-514, syskill(receiver_pid, 31));
+    // Expect -1 from because process should already be dead.
+    ASSERT_INT_EQ(-1, syswait(receiver_pid));
 
     // Receive from a process that dies while we're blocked
     // ====================================================
     receiver_pid = create(dying_process, DEFAULT_STACK_SIZE);
     ASSERT_INT_EQ(-1, sysrecv(&receiver_pid, &msg));
-    // Expect -1 from syskill because process should already be dead.
-    ASSERT_INT_EQ(-514, syskill(receiver_pid, 31));
+    // Expect -1 from because process should already be dead.
+    ASSERT_INT_EQ(-1, syswait(receiver_pid));
 
     // Ensure killed receive any proc gets removed from receive any queue
     // ==================================================================
     receiver_pid = create(receive_any, DEFAULT_STACK_SIZE);
     sysyield(); // Yield so other process can start
     ASSERT(!queue_is_empty(&receive_any_queue), "Queue should have one proc.");
-    KILL(receiver_pid, 31); 
+    WAIT(receiver_pid);
     // TODO: Issue here is that kill doesn't execute synchronously anymore, so
     // we need some way to ensure sigtramp happens before this assertion. 
     ASSERT(queue_is_empty(&receive_any_queue), "Queue should be empty.");
