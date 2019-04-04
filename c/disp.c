@@ -300,18 +300,14 @@ extern void dispatch(void) {
                 buff = GET_ARG(char *, sizeof(int));
                 bufflen = GET_ARG(unsigned int, sizeof(int) + sizeof(char *));
 
-                if (bufflen <= 0 || buff == NULL) process->ret_value = -1;
-                // TODO: check that fd doing read on is actually open
-                // TODO Don't hardcode the fd check!
-                else if (fd < 0 || fd > 3) process->ret_value = -1;
-                else {
-                    result = di_read(process, fd, buff, bufflen);
-                    if (result == -2) process->ret_value = 0;
-                    else process->ret_value = result;
-                }
-                
-                process = dequeue_from_ready();
+                result = di_read(process, fd, buff, bufflen);
 
+                if (result == -2)
+                    process->ret_value = 0;
+                else
+                    process->ret_value = result;
+
+                process = dequeue_from_ready();
                 break;
 
             case SYSCALL_WRITE:
