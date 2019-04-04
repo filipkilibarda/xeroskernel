@@ -7,3 +7,95 @@ respect to how new lines and carriage returns are treated. Line widths
 are to be limited to 80 characters.
 
 
+=====================================================================
+                              TESTS                                       
+=====================================================================
+#1 - Test showing prioritization and signals interrupting each other
+TEST: 
+ - Create 2 signal handlers
+    - one prints "I'm lower priority"
+    - the other prints "I'm higher priority"
+- Call syssighandler & register both the handlers:
+    - the lower priority handler is registered as signal 2
+    - the higher priority handler is registered as signal 4
+- Signal a signal 2 with syskill()
+- Signal a signal 4 with syskill()
+
+EXPECT: "I'm a higher priority" should be printed before 
+"I'm a lower priority" is. 
+RESULT: 
+
+#2 - syssighandler() test case 
+TEST: 
+- Attempt to pass in oldHandler pointer at an invalid address
+
+EXPECT: Should return -3 to indicate that oldHandler is at invalid address 
+RESULT: PASSES
+
+#3 - syskill() test case 
+TEST: 
+- Attempt to signal default behaviour 
+
+EXPECT:
+- No handler should be run. 
+REULT: PASSES 
+
+#4 - syswait() test case
+TEST:
+- Attempt to wait on a non-existent process
+
+EXPECT: 
+- Should return -1
+RESULT: 
+
+#5 - sysopen() with invalid arguments
+TEST: 
+- Attempt to open on device 12
+
+EXPECT: 
+- Should return -1
+RESULT: 
+
+#6 - syswrite() with invalid file descriptor
+TEST: 
+- Attempt to do a syswrite to fd 20 
+
+EXPECT:
+- Should return -1
+RESULT: 
+
+#7 - sysioctl() test for invalid arguments 
+TEST: 
+- Call sysioctl() with 60 as command number
+
+EXPECT: 
+- Should return -1
+RESULT: 
+
+#8 - sysread() when there are more characters buffered 
+in kernel than read requests
+TEST: 
+- Create a process that does a syssleep for 10 seconds
+- While the process is sleeping, pound away at the keyboard
+    - make note of the first key you press 
+    - by the time the process wakes up, the kernel buffer should
+    be full of ASCII characters from the keyboard
+- Have the process that was sleeping do a sysread for a single character
+
+EXPECT: 
+- Since the kernel buffers up to 4 characters, a read request for a single
+character should cause the first character we pressed to get copied into
+the process buffer. 
+- We expect that the first keypress prior to the other ones should 
+get copied into the buffer of the user. 
+RESULT: 
+
+#9 - Two test cases for scenarios not covered here or in the test program. 
+SCENARIO 1: attempt to install a newHandler at an invalid memory 
+address in syssighandler()
+EXPECT: Should return -2 indicating newHandler is invalid 
+RESULT: PASSES 
+
+SCENARIO 2: attempt to signal a process blocked on a send 
+EXPECT: syssend call should return -666
+RESULT: PASSES

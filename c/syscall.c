@@ -265,4 +265,3 @@ int sysioctl(int fd, unsigned long command, ...) {
     va_end(ap);
     return result;
 }
-

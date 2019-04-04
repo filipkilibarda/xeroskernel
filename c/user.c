@@ -268,10 +268,9 @@ void root(void) {
  * Returns 0 if user & password match the 
  * correct user and password.
  */
- // TODO: Should this be here?
-int verify_user(char *user, char *pass) {
-    if (strcmp(user, "cs415\n") == 0 && 
-    strcmp(pass, "EveryonegetsanA\n") == 0) {
+int verify_user(char *user, char *pass, int len1, int len2) {
+    if (strncmp(user, "cs415\n", len1) == 0 &&
+    strncmp(pass, "EveryonegetsanA\n", len2) == 0) {
         //kprintf("%s\n", pass);
         return 0;
     }
@@ -318,13 +317,12 @@ void ex(void) {
  * PID does not exist.
  */
 void k(PID_t pid) {
-    // TODO: this will try to kill process that exists but is stopped. 
-    // Need to ensure process is blocked/running before we send signal!
-    if (is_valid_pid(pid) == -1)
-        kprintf("No such process\n");
+    char buff[30];
+    int result = syskill(pid, 31);
+    if (result == -514) sysputs("Invalid PID to kill.\n");
     else {
-        kprintf("Killing pid %d...\n", pid);
-        syskill(pid, 31);
+        sprintf(buff, "Killed PID %d\n", pid);
+        sysputs(buff);
     }
 }
 
@@ -365,7 +363,8 @@ void alarm_handler(void * param) {
 void alarm_process(void) {
     syssleep(num_seconds);
     kprintf("Signaling shell\n");
-    syskill(shell_pid, 18);
+    // TODO
+    //syskill(shell_pid, 18);
 }
 
 /**
@@ -379,14 +378,15 @@ void alarm_process(void) {
  * then sends a signal 18 to the shell 
  * 
  */
- // TODO: Should this be in this file?
-void a(int milliseconds, char *buff) {
+void a(int milliseconds, char *buff, int length) {
     funcptr_t *oldHandler = (funcptr_t *) kmalloc(sizeof(funcptr_t*));
     syssighandler(18, alarm_handler, oldHandler);
     num_seconds = milliseconds;
-    //TODO: if buff ends in &, run in background, else wait.
+
     PID_t alarm = syscreate(alarm_process, DEFAULT_STACK_SIZE);
-    syswait(alarm);
+    // If buff ends in &, run in background, else wait.
+    if (buff[length] != '&') syswait(alarm);
+
     kprintf("Done waiting for alarm process\n");
 }
 
@@ -406,21 +406,16 @@ void a(int milliseconds, char *buff) {
 int does_command_exist(char *buff) {
 
     if (strncmp(buff, "ps", 2) == 0) return 0;
-    // TODO: Add check for EOF indicator as command for ex
     else if (strncmp(buff, "ex", 2) == 0) return 1;
     else if (strncmp(buff, "k ", 2) == 0) return 2;
     else if (strncmp(buff, "t", 1) == 0) return 3;
     else if (strncmp(buff, "a ", 2) == 0) return 4;
-    else {
-        for (int i = 0; i < 2; i++) {
-            kprintf("Char %d was %d\n", i, buff[i]);
-        }
-    }
+
     return -1;
 }
 
 /**
- * Returns the numeric component of the command typed.  
+ * Returns the numeric component of the command typed
  */
 int get_numeric_arg(char *buff) {
     buff += 2;
@@ -434,7 +429,7 @@ int get_numeric_arg(char *buff) {
  * by does_command_exist. 
  * 
  */
-void execute_command(int command, char *buff) {
+void execute_command(int command, char *buff, int length) {
     PID_t pid;
     int milliseconds;
 
@@ -454,7 +449,7 @@ void execute_command(int command, char *buff) {
             break;
         case 4: 
             milliseconds = get_numeric_arg(buff);
-            a(milliseconds, buff);
+            a(milliseconds, buff, length);
             break;
             
     }
@@ -481,18 +476,21 @@ void shell(void) {
     sysputs("\n");
     sysputs(">");
     char buff[60];
-    int result = sysread(fd, buff, 60);
+    int length = sysread(fd, buff, 60);
+
+    // If EOF was input, exit shell.
+    if (length == 0) ex();
+
     // Determine if buff command is valid
     // if so, return value indicates which command
-    // it is. 
-    if (result == 0) ex();
+    // it is.
     int command = does_command_exist(buff);
     if (command == -1) {
         sysputs("Command not valid\n");
         goto PROMPT;
     } else {
         // Wrapper function to execute appropriate command
-        execute_command(command, buff);
+        execute_command(command, buff, length);
     }
     goto PROMPT;
 }
@@ -514,15 +512,15 @@ void init_program(void) {
     sysputs("Username: ");
     // Allocate buffer to hold 'cs415' as username
     char user[10];
-    sysread(fd, user, 10);
+    int len1 = sysread(fd, user, 10);
     sysclose(fd);
     fd = sysopen(0);
     sysputs("Password: ");
     // Allocate buffer to hold 'EveryonegetsanA' as password
     char pass[25];
-    sysread(fd, pass, 25);
+    int len2 = sysread(fd, pass, 25);
     sysclose(fd);
-    if (verify_user(user, pass) == -1) goto START;
+    if (verify_user(user, pass, len1, len2) == -1) goto START;
     sysputs("\n");
     sysputs("Successfully logged in, starting terminal...\n");
     shell_pid = syscreate(shell, DEFAULT_STACK_SIZE);

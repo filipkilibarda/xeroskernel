@@ -466,12 +466,11 @@ extern void dispatch(void) {
         
                 // Put keypress into kernel buffer, if possible
                 read_char();
-                // Notify upper half that key was put into buffer
-                // if there's a process(es?) blocked on a read, 
-                // copy info into their buffer, and unblock them 
-                // (if # of bytes read is sufficient now)
                 
+                // Notify end of interrupt
                 end_of_intr();
+
+                // Ensure idle process isn't enqueued in ready
                 // TODO: Put this in enqueue_in_ready
                 if (process != idle_process)
                     enqueue_in_ready(process);
