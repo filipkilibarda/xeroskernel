@@ -489,13 +489,18 @@ void execute_command(int command, char *buff, int length) {
 void shell(void) {
     int fd;
     fd = sysopen(1);
+    int length;
 
 PROMPT:
 
     sysputs("\n");
     sysputs(">");
     char buff[60];
-    int length = sysread(fd, buff, 60);
+READ:
+    length = sysread(fd, buff, 60);
+
+    if (length == INTERRUPTED_SYSCALL)
+        goto READ;
 
     // If EOF was input, exit shell.
     if (length == 0) ex();
@@ -533,15 +538,20 @@ START:
     sysputs("\n");
     sysputs("Username: ");
     // Allocate buffer to hold 'cs415' as username
-    char user[10];
+    char user[11];
+    memset(user, 0, 11);
     int len1 = sysread(fd, user, 10);
     sysclose(fd);
 
     // Open non-echoing keyboard
     fd = sysopen(0);
+    if (fd == -1)
+        sysputs("Failed to open file");
+
     sysputs("Password: ");
     // Allocate buffer to hold 'EveryonegetsanA' as password
-    char pass[25];
+    char pass[26];
+    memset(pass, 0, 26);
     int len2 = sysread(fd, pass, 25);
     sysclose(fd);
 

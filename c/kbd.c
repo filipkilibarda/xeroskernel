@@ -300,8 +300,6 @@ static int consume_kernel_buff(void) {
     while(data_in_buff() && !user_buff_full()) {
         ascii_char = get_from_buffer();
 
-        LOG("Read ascii char %d", ascii_char);
-
         if (ascii_char == eof_indicator) {
             eof_encountered = 1;
             enable_irq(KEYBOARD_IRQ, 1); // Disable keyboard
@@ -385,7 +383,7 @@ void read_from_keyboard(void) {
     unsigned char data = inb(KEYBOARD_DATA_PORT);
     unsigned char ascii = convert_to_ascii(data);
 
-    if (ascii == NOCHAR)
+    if (ascii == NOCHAR || ascii == NULL)
         // Can't do anything useful with this.
         return;
 
