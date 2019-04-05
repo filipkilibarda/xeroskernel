@@ -7,7 +7,7 @@
  * Macros used outside this file:
  * ==============================
  *  LOG(msg, ...):
- *      Prints a log message to console only if in TESTING mode.
+ *      Prints a log message to console only if in ENABLE_LOGGING mode.
  *  STOP():
  *      Stop the cpu by disabling interrupts and halting the CPU.
  *  ASSERT(condition, msg):
@@ -25,10 +25,12 @@
 
 #include <xeroslib.h>
 
-// This turns on the tests
-//#define TESTING
+// This turns on LOG messages
+//#define ENABLE_LOGGING
 // This makes it such that successful assertions are logged
 //#define PRINT_ASSERT_CONFIRMATION
+// This turns on the tests
+#define TESTING
 
 // Helper for including variadic args in macros
 #define VA_ARGS(...) , ##__VA_ARGS__
@@ -91,7 +93,7 @@
  * Lock the CPU by preventing interrupts. Restore the IF flag back to what it
  * was before this was called.
  **/
-#ifdef TESTING
+#ifdef ENABLE_LOGGING
 #define LOG(message, ...) do {\
     __asm __volatile("pushf; cli":::);\
     char info[80];\
