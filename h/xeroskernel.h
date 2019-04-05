@@ -142,6 +142,7 @@ struct fdt_entry {
 };
 
 
+// Used to place a signal context frame onto the stack of a process.
 typedef struct sig_context sig_context_t;
 struct sig_context {
     unsigned long empty_registers[NUM_GP_REGISTERS]; //
