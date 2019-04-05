@@ -91,7 +91,7 @@ void yield_500_times(void) {
  **/
 void test_pcb_table_full(void) {
 
-    kprintf("\n======Starting test for pcb_table_full======\n");
+    LOG("======Starting test for pcb_table_full======");
 
     int pid;
     int original_num_free_pcbs = get_num_stopped_processes();
@@ -121,7 +121,7 @@ void test_pcb_table_full(void) {
  * Test creating a process with a stack that's too big.
  **/
 void test_stack_too_big(void) {
-    kprintf("\n======Starting test for stack_too_big======\n");
+    LOG("======Starting test for stack_too_big======");
 
     int original_num_free_pcbs = get_num_stopped_processes();
     unsigned long original_free_mem = total_free_memory();

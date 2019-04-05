@@ -338,21 +338,17 @@ int stop_process(PID_t pid) {
     // Process with given PID doesn't exist
     if (!process) return -1;
 
-    //LOG("Killing process PID: %d", process->pid);
-    free_process_memory(process);
-    enqueue_in_stopped(process);
-    // Clean up any open devices
+    // Bit of a hack, but unblock does a whole bunch of cleanup that we want.
+    unblock(process);
     clean_up_devices(process);
-
-    // TODO: Might just wanna call unblock here (then call enqueue_in_stopped
-    //  after)
     // Check if there were any processes waiting for this process to die
-    // TODO: This should go in notify_dependent_processes
     wake_up_waiters(process);
-    // TODO: If the process is on a waiter queue, remove it
     pull_from_queue(ready_queues[process->priority], process);
     notify_dependent_processes(process);
     remove_from_ipc_queues(process);
+
+    enqueue_in_stopped(process);
+    free_process_memory(process);
     return 0;
 }
 
@@ -827,7 +823,7 @@ void print_cpu_times(process_statuses *proc_stats) {
  **/
 void test_dispatcher(void) {
 
-    kprintf("=========Starting tests for dispatcher!=========\n\n");
+    LOG("=========Starting tests for dispatcher!=========");
 
     pcb *process;
 

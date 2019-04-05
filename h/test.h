@@ -26,9 +26,9 @@
 #include <xeroslib.h>
 
 // This turns on the tests
-#define TESTING
+//#define TESTING
 // This makes it such that successful assertions are logged
-#define PRINT_ASSERT_CONFIRMATION
+//#define PRINT_ASSERT_CONFIRMATION
 
 // Helper for including variadic args in macros
 #define VA_ARGS(...) , ##__VA_ARGS__
