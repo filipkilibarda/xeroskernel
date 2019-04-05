@@ -287,6 +287,10 @@ int verify_user(char *user, char *pass, int len1, int len2) {
  * =========
  */
 
+
+char *process_state_strings[4] = {"READY  ", "RUNNING", "STOPPED", "BLOCKED"};
+
+
 /**
  * Prints process statuses in system for 
  * running/blocked processes. 
@@ -296,13 +300,14 @@ void ps(void) {
     process_statuses psTab;
     int procs = sysgetcputimes(&psTab);
 
-    sysputs("  PID    STATE      UPTIME (ms)\n");
+    sysputs("  PID    STATE       UPTIME (ms)\n");
+    sysputs("  ===    =====       ===========\n");
     for (int i = 0; i <= procs; i++) {
-        sprintf(buff, "%4d    %4d    %10d\n", psTab.pid[i], psTab.status[i], 
-        psTab.cpu_time[i]);
-        kprintf(buff);
+        sprintf(buff, "%4d     %s  %10d\n", psTab.pid[i],
+                process_state_strings[psTab.status[i]],
+                psTab.cpu_time[i]);
+        sysputs(buff);
     }    
-
 }
 
 /**
@@ -354,7 +359,6 @@ void alarm_handler(void * param) {
     funcptr_t oldHandler;
     sysputs("ALARM, ALARM, ALARM\n");
     syssighandler(18, newHandler, &oldHandler);
-    sysputs("Disabled signal 18\n");
 }
 
 /**

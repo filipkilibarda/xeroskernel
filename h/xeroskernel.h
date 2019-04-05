@@ -69,7 +69,7 @@ typedef unsigned int size_t; /* Something that can hold the value of
 // Maximum number of processes. Must be power of two
 #define MAX_PCBS 16 // TODO: Change back to 32
 #define IDLE_PROCESS_PID 0
-// Process state numbers
+// Process state numbers DO NOT CHANGE NUMBER ORDER HERE
 #define PROC_READY 0
 #define PROC_RUNNING 1
 #define PROC_STOPPED 2
