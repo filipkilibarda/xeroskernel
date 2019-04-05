@@ -100,12 +100,13 @@ void           outb(unsigned int, unsigned char);
 void           set_evec(unsigned int xnum, unsigned long handler);
 
 
-// Memory management function prototypes
+// mem.c
 extern void    kmeminit(void);
 extern int     kfree(void *ptr);
 extern void *  kmalloc(size_t size);
 unsigned long  total_free_memory(void);
 int            within_memory_bounds(unsigned long address);
+int            within_kernel_memory_bounds(unsigned long address);
 int            in_hole(unsigned long address);
 
 

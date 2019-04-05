@@ -284,6 +284,19 @@ int within_memory_bounds(unsigned long address) {
 
 
 /**
+ * Return 1 if the address is within valid kernel memory addresses.
+ * Return 0 otherwise.
+ **/
+int within_kernel_memory_bounds(unsigned long address) {
+    // First, ensure ptr does not exceed memory bounds
+    if (address == NULL || address > END_OF_MEMORY) {
+        return 0;
+    }
+    return !in_hole(address);
+}
+
+
+/**
 * Helper function called by kfree()
 * Determines if a given address is valid. 
 *

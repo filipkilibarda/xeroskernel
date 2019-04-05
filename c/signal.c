@@ -87,7 +87,16 @@ void clear_signal(pcb *process, int signal_num) {
 
 
 funcptr_t get_sig_handler(pcb *process, int signal_num) {
+    if (!is_valid_signal_num(signal_num))
+        FAIL("Bug. Invalid signal num.");
     return process->sig_handlers[signal_num];
+}
+
+
+void set_sig_handler(pcb *process, funcptr_t handler, int signal_num) {
+    if (!is_valid_signal_num(signal_num))
+        FAIL("Bug. Invalid signal num.");
+    process->sig_handlers[signal_num] = handler;
 }
 
 
@@ -325,26 +334,16 @@ int sigreturn(pcb *process, void *old_sp) {
 int sighandler(pcb *process, int signal_num, funcptr_t newHandler,
                funcptr_t *oldHandler)
 {
-    if (!is_valid_signal_num(signal_num) || signal_num == 31) {
-        LOG("Invalid signal %d; can't change handler", signal_num);
-        return -1;
+    unsigned long nh = (unsigned long) newHandler;
+    unsigned long oh = (unsigned long) oldHandler;
+    if (!is_valid_signal_num(signal_num) || signal_num == 31) return -1;
+    if (nh && !within_kernel_memory_bounds(nh))               return -2;
+    if (!within_kernel_memory_bounds(oh))                     return -3;
 
-    // TODO: This logic already exists in mem.c
-    } else if (((int) newHandler > HOLESTART && (int) newHandler < HOLEEND)
-               || (int) newHandler > END_OF_MEMORY) {
-        return -2;
-
-    // TODO: This logic already exists in mem.c
-    } else if (((int) oldHandler > HOLESTART && (int) oldHandler < HOLEEND)
-               || (int) oldHandler > END_OF_MEMORY || oldHandler == NULL) {
-        return -3;
-
-    } else {
-        *oldHandler = process->sig_handlers[signal_num];
-        process->sig_handlers[signal_num] = newHandler;
-        LOG("Registered handler %d for proc %d", signal_num, process->pid);
-        return 0;
-    }
+    *oldHandler = get_sig_handler(process, signal_num);
+    set_sig_handler(process, newHandler, signal_num);
+    LOG("Registered handler %d for proc %d", signal_num, process->pid);
+    return 0;
 }
 
 
