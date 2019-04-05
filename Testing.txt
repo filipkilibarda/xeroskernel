@@ -16,14 +16,14 @@ TEST:
     - one prints "I'm lower priority"
     - the other prints "I'm higher priority"
 - Call syssighandler & register both the handlers:
-    - the lower priority handler is registered as signal 2
-    - the higher priority handler is registered as signal 4
-- Signal a signal 2 with syskill()
-- Signal a signal 4 with syskill()
+    - the lower priority handler is registered as signal 3
+    - the higher priority handler is registered as signal 5
+- Signal a signal 3 with syskill()
+- Handler for signal 3 signals signal 5
 
 EXPECT: "I'm a higher priority" should be printed before 
 "I'm a lower priority" is. 
-RESULT: (Not sure this test is formulated correctly, revisit)
+RESULT: PASSES
 
 #2 - syssighandler() test case 
 TEST: 
@@ -88,7 +88,7 @@ character should cause the first character we pressed to get copied into
 the process buffer. 
 - We expect that the first keypress prior to the other ones should 
 get copied into the buffer of the user. 
-RESULT: 
+RESULT: PASSES
 
 #9 - Two test cases for scenarios not covered here or in the test program. 
 SCENARIO 1: attempt to install a newHandler at an invalid memory 

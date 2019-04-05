@@ -83,12 +83,14 @@ int signal(PID_t pid, int signal_num) {
     if (pending_signal > signal_num) {
         signal_code = pending_signal;
         init_signal_context(process_to_signal);
+        process_to_signal->sig_stack_size++;
     }
     // Otherwise, check current signal priority to 
     // determine whether to send the signal 
     else if (process_to_signal->sig_prio < signal_num) {
         signal_code = signal_num;
         init_signal_context(process_to_signal);
+        process_to_signal->sig_stack_size++;
     }
 
     // Stub (TODO: Is there something meaningful that this should return?)
@@ -102,10 +104,8 @@ int signal(PID_t pid, int signal_num) {
  * function after calling syssigreturn. 
  **/ 
 extern void sigtramp(void (*handler)(void *), void *context) {
-    if (handler != NULL) {
-        //kprintf("SIGTRAMP: Calling handler\n");
-        handler(context);
-    } else kprintf("Handler is null\n");
+    //kprintf("SIGTRAMP: Calling handler\n");
+    handler(context);
     // Rewind stack to point to old context, and 
     // restore previous return value.
     //kprintf("SIGTRAMP: Calling syssigreturn\n");
@@ -204,9 +204,6 @@ int kill(PID_t pid, int signal_num) {
     if (!receiving_process)
         return -514;
 
-    // TODO: If the signal handler is NULL just return 0 immediately, nothing
-    //  to do.
-
     // If process to signal is blocked, set its return value to -666, unless it
     // is sleeping
     if (is_blocked(receiving_process)) {
@@ -221,7 +218,6 @@ int kill(PID_t pid, int signal_num) {
         LOG("Pulling from sleep list");
         // TODO: The return value here needs to be the amount of time that's
         //  left to sleep.
-        // TODO: Don't do this if not on sleep queue
         pull_from_sleep_list(receiving_process);
         enqueue_in_ready(receiving_process);
 
@@ -250,15 +246,25 @@ int sigreturn(pcb *process, void *old_sp) {
     unsigned long mask = get_sig_mask(signal_num);
     process->sig_mask = process->sig_mask ^ mask;
 
-    // TODO:
+    process->sig_stack_size--;
+
+    int highest_signal = get_highest_signal_number(process->sig_mask);
+    // TODO: 
     // Reset current signal priority in PCB
-    // If signalstack != 0
+    // If signalstack != 0 
     // Grab signal off stack below
-
-    // else check mask for a signal
-
-    // Else set to -1
-    process->sig_prio = -1;
+    if (process->sig_stack_size != 0) {
+        // I'm like, 10% sure this is correct
+        process->sig_prio = *((int *) (process->stack_ptr - 28));
+    }
+    // else check mask for a signal 
+    else if (highest_signal != -2) {
+        process->sig_prio = highest_signal;
+    }
+    else {
+        // Else set to -1
+        process->sig_prio = -1;
+    }
 
     // Update stack pointer
     process->stack_ptr = old_sp;
@@ -370,7 +376,7 @@ void sig_high_priority(void *param) {
 }
 
 void sig_low_priority(void *param) {
-    syswait(2000);
+    syskill(sysgetpid(), 5);
     sysputs("I'm a lower priority\n");
 }
 
@@ -466,7 +472,7 @@ void _test_signal(void) {
     ASSERT_INT_EQ(-514, result);
 
     // TEST 12: syswait on a process, then kill that process it's 
-    // ting on.
+    // ting on. 
     // Expect that this will cause us to return control back to next line
     proc = syscreate(test_process, DEFAULT_STACK_SIZE);
     syscreate(proc_killer, DEFAULT_STACK_SIZE);
@@ -482,7 +488,7 @@ void _test_signal(void) {
 
     // TODO:
     // TEST 14: Signal a non-blocking system call
-    // Expect that ssysigreturn will retrieve the old return
+    // Expect that ssysigreturn will retrieve the old return 
     // value of the non-blocking system call, and thus
     // the value will be returned as normal.
 
@@ -493,11 +499,11 @@ void _test_signal(void) {
     ASSERT_INT_EQ(0, handler_one);
     ASSERT_INT_EQ(0, handler_two);
     syskill(sysgetpid(), 3);
-    syskill(sysgetpid(), 5);
 
     // TEST 16: attempt to do a syswait() on a non-existent process
     int syswait_result = syswait(10000);
     ASSERT_INT_EQ(-1, syswait_result);
 
-    // TODO: Copy what we did for test_ipc here. A bunch of assertions.
+    
+
 }

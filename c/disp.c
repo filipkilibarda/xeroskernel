@@ -171,10 +171,22 @@ extern void dispatch(void) {
             case SYSCALL_KILL:
                 pid = GET_ARG(PID_t, 0);
                 signal_num = GET_ARG(int, sizeof(PID_t));
-                process->ret_value = kill(pid, signal_num);
+                pcb *process_to_signal = get_pcb(pid);
 
-                LOG("Signal %d sent %d->%d RC %d", signal_num, process->pid,
-                        pid, process->ret_value);
+                // Ignore signal if the handler is NULL
+                if (process_to_signal->sig_handlers[signal_num] != NULL) {
+                    process->ret_value = kill(pid, signal_num);
+
+                    LOG("Signal %d sent %d->%d RC %d", signal_num, process->pid,
+                            pid, process->ret_value);
+                } else if (!is_valid_signal_num(signal_num)) {
+                    process->ret_value = -583;
+                }
+                // This means that the signal sent had a NULL handler 
+                else if (is_valid_signal_num(signal_num)) {
+                    process->ret_value = 0;
+                }
+
                 enqueue_in_ready(process);
                 process = dequeue_from_ready();
                 break;
