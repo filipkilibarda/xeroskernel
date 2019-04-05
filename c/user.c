@@ -350,9 +350,9 @@ void t(void) {
  */
 void alarm_handler(void * param) {
     funcptr_t newHandler = NULL;
-    funcptr_t *oldHandler;  
+    funcptr_t oldHandler;
     sysputs("ALARM, ALARM, ALARM\n");
-    syssighandler(18, newHandler, oldHandler);
+    syssighandler(18, newHandler, &oldHandler);
     sysputs("Disabled signal 18\n");
 }
 
