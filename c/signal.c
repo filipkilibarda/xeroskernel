@@ -9,6 +9,7 @@
 
 #pragma GCC diagnostic push 
 #pragma GCC diagnostic ignored "-Wunused-variable"
+// TODO: This is duplicated
 static unsigned long EFLAGS = 0x00003200;
 static unsigned long GP_REGISTER = 0x00000000;
 static unsigned long OLD_RV;
@@ -36,6 +37,21 @@ unsigned long sig_masks[MAX_SIGNALS] =
 0x00100000, 0x00200000, 0x00400000, 0x00800000, 
 0x01000000, 0x02000000, 0x04000000, 0x08000000, 
 0x10000000, 0x20000000, 0x40000000, 0x80000000};
+
+
+// TODO docs
+typedef struct signal_context {
+    void *process_context;
+    funcptr_t handler;
+    void *empty_return_address;
+    unsigned long eflags;
+    unsigned long cs;
+    unsigned long eip;
+    unsigned long signal_code;
+//    unsigned long process_stack; // TODO: Changed below GP registers to 6
+    unsigned long old_return_val;
+    unsigned long empty_registers[6];
+} signal_context;
 
 
 /**
@@ -124,7 +140,7 @@ extern void sigtramp(void (*handler)(void *), void *context) {
  */
 void init_signal_context(pcb *process_to_signal) {
     process_to_signal->sig_prio = signal_code;
-    
+
         __asm __volatile( " \
             movl %%esp, kern_stack \n\
             movl proc_stack, %%esp \n\

@@ -173,11 +173,8 @@ extern void dispatch(void) {
                 signal_num = GET_ARG(int, sizeof(PID_t));
 
                 process->ret_value = kill(pid, signal_num);
-
                 LOG("Signal %d sent %d->%d RC %d", signal_num, process->pid,
                             pid, process->ret_value);
-                
-
                 enqueue_in_ready(process);
                 process = dequeue_from_ready();
                 break;
