@@ -403,6 +403,8 @@ void _test_ipc(void) {
     // ====================
     // Ensures all processes created in here finished. That is, none of them
     // deadlocked waiting for a message.
+    // NOTE: This code is duplicated elsewhere. IF YOU MAKE CHANGES HERE MAKE
+    // SURE TO CTRL+F AND ADD ELSEWHERE
     wait_for_free_pcbs(num_stopped_processes);
     validate_stopped_queue();
     ASSERT(queue_is_empty(&sender_pcb->receiver_queue), "Expect empty queue");

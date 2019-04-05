@@ -92,7 +92,9 @@ funcptr_t get_sig_handler(pcb *process, int signal_num) {
 
 
 /**
- * Setup the signal context for the current highest priority pending signal.
+ * Setup the signal context for the given signal number.
+ *
+ * Should be called right before context switching to the process.
  */
 void setup_sig_context(pcb *process, int signal_num) {
 
@@ -107,7 +109,6 @@ void setup_sig_context(pcb *process, int signal_num) {
     // Overlay the signal context over the process' stack
     sig_context_t *sig_context = process->stack_ptr - sizeof(sig_context_t);
     memset(sig_context->empty_registers, 0, NUM_GP_REGISTERS*sizeof(void *));
-    // TODO: Make sure this pointer this is right... wtf
     sig_context->eip = (unsigned long) sigtramp;
     sig_context->cs = getCS();
     sig_context->eflags = PROCESS_EFLAGS;
@@ -147,8 +148,8 @@ int signal(PID_t pid, int signal_num) {
 
     pcb *process_to_signal = get_active_pcb(pid);
 
-    if (!process_to_signal)                                  return -514;
     if (!is_valid_signal_num(signal_num))                    return -583;
+    if (!process_to_signal)                                  return -514;
     if (process_to_signal->sig_handlers[signal_num] == NULL) return 0;
 
     set_signal(process_to_signal, signal_num);
@@ -507,12 +508,11 @@ void test_process_prints(void) {
 
 void register_handler_loop(void) {
     funcptr_t newHandler = &test_handler;
-    funcptr_t *oldHandler = (funcptr_t *) kmalloc(16);
-    int result = syssighandler(2, newHandler, oldHandler);
+    funcptr_t oldHandler;
+    int result = syssighandler(2, newHandler, &oldHandler);
     ASSERT_INT_EQ(0, result);
     result = syssleep(10000); 
     ASSERT(result > 0, "Result should have been > 0\n");
-    kfree(oldHandler);
 }
 
 void test_handler(void *param) {
@@ -556,10 +556,18 @@ void sig_low_priority(void *param) {
  * Test the signal functionality
  */
 void _test_signal(void) {
+    // Used for test cleanup later
     int initial_num_stopped = get_num_stopped_processes();
+    int initial_free_memory = total_free_memory();
+
+    PID_t p1;
+    funcptr_t newHandler = NULL;
+    funcptr_t oldHandler = NULL;
+    int result;
+
     // A basic test of syssigkill() functionality
-    // TEST 1: Ensure that one process can signal another 
-    PID_t p1 = syscreate(test_process, DEFAULT_STACK_SIZE);
+    // TEST 1: Ensure that one process can signal another
+    p1 = syscreate(test_process, DEFAULT_STACK_SIZE);
     pcb *p1_pcb = get_active_pcb(p1);
 
     syssleep(200);
@@ -570,56 +578,44 @@ void _test_signal(void) {
     // ======================================================
     // BEGIN SYSSIGHANDLER TESTS
     // ======================================================
-    funcptr_t newHandler; 
-    funcptr_t* oldHandler;
 
     // TEST 2: attempt to register handler for invalid signals
-    newHandler = (funcptr_t) kmalloc(16);
-    oldHandler = (funcptr_t *) kmalloc(16);
-    int result = syssighandler(-3, newHandler, oldHandler);
+    result = syssighandler(-3, newHandler, &oldHandler);
     ASSERT_INT_EQ(result, -1);
-    result = syssighandler(32, newHandler, oldHandler);
+    result = syssighandler(32, newHandler, &oldHandler);
     ASSERT_INT_EQ(result, -1);
 
     // TEST 3: attempt to register handler for signal 31
-    result = syssighandler(31, newHandler, oldHandler);
+    result = syssighandler(31, newHandler, &oldHandler);
     ASSERT_INT_EQ(-1, result);
 
     // TEST 4: attempt to register newHandler at invalid addresses
-    kfree(newHandler);
-    newHandler = (funcptr_t) (HOLESTART + 10);
-    result = syssighandler(10, newHandler, oldHandler);
+    result = syssighandler(10, (funcptr_t) (HOLESTART + 10), &oldHandler);
     ASSERT_INT_EQ(-2, result);
-    newHandler = (funcptr_t) (END_OF_MEMORY + 10);
-    result = syssighandler(4, newHandler, oldHandler);
+    result = syssighandler(4, (funcptr_t) (END_OF_MEMORY + 10), &oldHandler);
     ASSERT_INT_EQ(-2, result);
     // TODO: test NULL newHandler (expect 0)
 
     // TEST 5: attempt to pass in oldHandler pointer at invalid addresses
-    newHandler = kmalloc(16);
-    kfree(oldHandler);
-    oldHandler = (funcptr_t *) (HOLESTART + 10);
-    result = syssighandler(5, newHandler, oldHandler);
+    result = syssighandler(5, newHandler, (funcptr_t *) (HOLESTART + 10));
     ASSERT_INT_EQ(-3, result);
-    oldHandler = (funcptr_t *) (END_OF_MEMORY + 10);
-    result = syssighandler(6, newHandler, oldHandler);
+    result = syssighandler(6, newHandler, (funcptr_t *) (END_OF_MEMORY + 10));
     ASSERT_INT_EQ(-3, result);
     // TODO: test NULL oldHandler (expect -3)
 
-    // TEST 6: successfully install a 'handler' 
-    oldHandler = kmalloc(16);
-    result = syssighandler(4, newHandler, oldHandler);
+    // TEST 6: successfully install a 'handler'
+    result = syssighandler(4, newHandler, &oldHandler);
     ASSERT_INT_EQ(0, result);
     // Since the signal table was empty, there shouldn't be anything here
-    ASSERT(*oldHandler == NULL, "oldHandler should be NULL\n");
+    ASSERT(oldHandler == NULL, "oldHandler should be NULL\n");
 
     // TEST 7: attempt to signal default behavior ('ignore' signal)
     p1 = syscreate(test_process_prints, DEFAULT_STACK_SIZE);
     // We never defined a signal handler so it should just ignore this.
-    // We will see it print 10 times. 
+    // We will see it print 10 times.
     sysputs("Calling syskill\n");
     ASSERT_INT_EQ(0, syskill(p1, 2));
-    
+
     // TEST 8: attempt to signal while a process is blocked sleeping
     LOG("Handler is %x", &test_handler);
     PID_t p2 = syscreate(register_handler_loop, DEFAULT_STACK_SIZE);
@@ -633,7 +629,9 @@ void _test_signal(void) {
     proc = syscreate(test_process, DEFAULT_STACK_SIZE);
     PID_t p3 = syscreate(send_signal_int, DEFAULT_STACK_SIZE);
     ASSERT_INT_EQ(0, syskill(p3, 4));
-    
+    ASSERT_INT_EQ(0, syskill(proc, 31));
+    ASSERT_INT_EQ(0, syskill(p3, 31));
+
     // TEST 10: Illegal syskill signal
     result = syskill(proc, 50);
     ASSERT_INT_EQ(-583, result);
@@ -642,13 +640,13 @@ void _test_signal(void) {
     result = syskill(1000, 3);
     ASSERT_INT_EQ(-514, result);
 
-    // TEST 12: syswait on a process, then kill that process it's 
-    // ting on. 
+    // TEST 12: syswait on a process, then kill that process it's
+    // ting on.
     // Expect that this will cause us to return control back to next line
     proc = syscreate(test_process, DEFAULT_STACK_SIZE);
     syscreate(proc_killer, DEFAULT_STACK_SIZE);
     syswait(proc);
-    LOG("RETURNED TO TEST", NULL);
+    LOG("RETURNED TO TEST");
 
     // TEST 13: Interrupt a process sleeping for a while with a signal
     // Expect that its return value will not be 0.
@@ -656,6 +654,8 @@ void _test_signal(void) {
     syssleep(1000);
     LOG("Calling syskill on sleeper");
     ASSERT_INT_EQ(0, syskill(sleeper, 5));
+    syssleep(1000);
+    ASSERT_INT_EQ(0, syskill(sleeper, 31));
 
     // TODO:
     // TEST 14: Signal a non-blocking system call
@@ -665,8 +665,8 @@ void _test_signal(void) {
 
     // TEST 15: prioritization and signals interrupting each other
     // Expect that higher priority signal handler will run first
-    int handler_one = syssighandler(3, sig_low_priority, oldHandler);
-    int handler_two = syssighandler(5, sig_high_priority, oldHandler);
+    int handler_one = syssighandler(3, sig_low_priority, &oldHandler);
+    int handler_two = syssighandler(5, sig_high_priority, &oldHandler);
     ASSERT_INT_EQ(0, handler_one);
     ASSERT_INT_EQ(0, handler_two);
     syskill(sysgetpid(), 3);
@@ -674,6 +674,16 @@ void _test_signal(void) {
     // TEST 16: attempt to do a syswait() on a non-existent process
     int syswait_result = syswait(10000);
     ASSERT_INT_EQ(-1, syswait_result);
+
+    // Cleanup and validate
+    // ====================
+    // Ensures all processes created in here finished. That is, none of them
+    // deadlocked waiting for a message.
+    // NOTE: This code is duplicated elsewhere. IF YOU MAKE CHANGES HERE MAKE
+    // SURE TO CTRL+F AND ADD ELSEWHERE
+    wait_for_free_pcbs(initial_num_stopped);
+    validate_stopped_queue();
+    ASSERT_INT_EQ(initial_free_memory, total_free_memory());
 }
 
 
