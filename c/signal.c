@@ -203,10 +203,10 @@ static void somethings_broken_function(void) {
 
 
 static int has_pending_signals(pcb* process) {
-    if (!process->sig_context)
+    int current_sig_num = get_current_sig_num(process);
+    if (current_sig_num == -1)
         return process->pending_sig_mask > 0;
-    return (process->pending_sig_mask /
-            (1 << process->sig_context->signal_num)) > 0;
+    return (process->pending_sig_mask >> (current_sig_num + 1)) > 0;
 }
 
 
@@ -324,6 +324,14 @@ void test_signal_helpers(void) {
     ASSERT_INT_EQ(2, get_pending_sig_num(process));
     clear_signal(process, 2);
 
+    // Continuation of above
+    process = init_dummy_process();
+    set_signal(process, 1);
+    setup_sig_context(process, 1);
+    clear_signal(process, 1);
+    set_signal(process, 1);
+    ASSERT_INT_EQ(-1, get_pending_sig_num(process));
+
     // ========================================
     // Test the sig context
     // ========================================
@@ -381,6 +389,7 @@ void test_signal_helpers(void) {
 #pragma GCC diagnostic ignored "-Wunused-function"
 
 static void _test_signal(void);
+static void _test_signal2(void);
 void test_handler(void *);
 
 static PID_t proc;
@@ -390,6 +399,7 @@ static PID_t proc;
  */
 void test_signal(void) {
     RUN_TEST(_test_signal);
+    RUN_TEST(_test_signal2);
 }
 
 
@@ -595,58 +605,74 @@ void _test_signal(void) {
 // =============================================================================
 // =============================================================================
 
+int high_prio_runs = 0;
+int low_prio_runs = 0;
+int num_runs = 0;
+PID_t pid;
 
-//void handler2(void *context) {
-//    kprintf("hi");
-//}
-//
-//
-//void _test_signal2(void) {
-//
-//    // =======================================================================
-//    // Signal yourself
-//    // =======================================================================
-//
-//    funcptr_t old_handler;
-//    PID_t pid = sysgetpid();
-//    int high_prio_runs = 0;
-//    int low_prio_runs = 0;
-//
-//    int num_runs = 0;
-//
-//    syssighandler(0, handler2, &old_handler);
-//    SYSKILL(pid, 0);
-//    ASSERT_INT_EQ(1, num_runs);
-//
-//    STOP;
+void handler2(void *context) {
+    num_runs++;
+}
 
-// =======================================================================
-// TEST Signal a process multiple times
-// =======================================================================
+void high_prio_handler(void *context) {
+    LOG("Running high priority handler");
+    if (high_prio_runs++ == 0) {
+        SYSKILL(pid, 0);
+        ASSERT_INT_EQ(0, low_prio_runs);
+    }
+}
 
-//    void high_prio_handler(void *context) {
-//        high_prio_runs++;
-//        SYSKILL(pid, 0);
-//        ASSERT_INT_EQ(0, low_prio_runs);
-//    }
-//
-//    void low_prio_handler(void *context) {
-//        low_prio_runs++;
-//        ASSERT_INT_EQ(1, high_prio_runs);
-//        SYSKILL(pid, 1);
-//        ASSERT_INT_EQ(2, high_prio_runs);
-//    }
-//
-//    syssighandler(1, high_prio_handler, &old_handler);
-//    syssighandler(0, low_prio_handler, &old_handler);
-//
-//    SYSKILL(pid, 1);
-//    ASSERT_INT_EQ(1, low_prio_runs);
-//    ASSERT_INT_EQ(2, high_prio_runs);
+void low_prio_handler(void *context) {
+    LOG("Running low priority handler");
+    low_prio_runs++;
+    ASSERT_INT_EQ(1, high_prio_runs);
+    SYSKILL(pid, 1);
+    ASSERT_INT_EQ(2, high_prio_runs);
+}
 
-// =======================================================================
-// Simple test case like above except have a signal handler send the same
-// signal to itself. The signal handler should in fact run twice.
-// =======================================================================
-// TODO
-//}
+void handler_run_twice(void *context) {
+    num_runs++;
+    if (num_runs == 1) {
+        SYSKILL(pid, 3);
+        ASSERT_INT_EQ(1, num_runs);
+    }
+}
+
+void _test_signal2(void) {
+
+    // =======================================================================
+    // Signal yourself
+    // =======================================================================
+
+    num_runs = 0;
+    pid = sysgetpid();
+    funcptr_t old_handler;
+
+    syssighandler(0, handler2, &old_handler);
+    SYSKILL(pid, 0);
+    ASSERT_INT_EQ(1, num_runs);
+
+    // =======================================================================
+    // TEST Signal a process multiple times
+    // =======================================================================
+
+    syssighandler(1, high_prio_handler, &old_handler);
+    syssighandler(0, low_prio_handler, &old_handler);
+
+    SYSKILL(pid, 1);
+    ASSERT_INT_EQ(1, low_prio_runs);
+    ASSERT_INT_EQ(2, high_prio_runs);
+
+    // =======================================================================
+    // Simple test case like above except have a signal handler send the same
+    // signal to itself. The signal handler should in fact run twice.
+    // =======================================================================
+
+    num_runs = 0;
+    syssighandler(3, handler_run_twice, &old_handler);
+    SYSKILL(pid, 3);
+    ASSERT_INT_EQ(2, num_runs);
+
+    // TODO Write a test where IPC is happening and make sure return value is
+    //  restored after signal.
+}
