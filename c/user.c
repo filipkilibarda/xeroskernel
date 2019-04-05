@@ -49,6 +49,7 @@ void consumer(void) {
  **/
 void simple_process(void) {
     PID_t pid = sysgetpid();
+    pid = pid; // Suppress compiler warning about unused var
     LOG("Running inside process %d", pid);
     for(;;) sysyield();
 }
@@ -250,6 +251,7 @@ void idleproc(void) {
 void root(void) {
     // Tests
     // =====
+    #ifdef TESTING
     syswait(create(test_syscreate, DEFAULT_STACK_SIZE));
     syswait(create(test_pcb_table_full, DEFAULT_STACK_SIZE));
     syswait(create(test_stack_too_big, DEFAULT_STACK_SIZE));
@@ -259,7 +261,7 @@ void root(void) {
 //    syswait(create(test_kb, DEFAULT_STACK_SIZE));
 //    syswait(create(test_time_slice, DEFAULT_STACK_SIZE));
 //    syswait(create(producer_consumer, DEFAULT_STACK_SIZE));
-
+    #endif
     // Start up the shell
     syswait(create(init_program, DEFAULT_STACK_SIZE));
 }
