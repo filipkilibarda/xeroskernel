@@ -6,12 +6,12 @@
 #include <xeroslib.h>
 #include <test.h>
 
-// TODO: Merge this with TICK_MILLISECONDS
-#define TICK_TIME 10
-pcb *sleep_delta_list = NULL;
+
+pcb *sleep_delta_list;
 
 // Testing methods
 static pcb *init_test_pcb(unsigned int milliseconds);
+int    get_sleep_time(pcb *process);
 
 
 /**
@@ -21,9 +21,11 @@ static pcb *init_test_pcb(unsigned int milliseconds);
  * Returns 0 on success.
  */
 int sleep(pcb *process, unsigned int milliseconds) {
-    // Set PCB metadata
-    // TODO: divide by TICK_MS to get # of ticks
-    process->sleep_time = milliseconds;
+
+    // Convert the milliseconds to ticks
+    int num_ticks = ms_to_ticks(milliseconds);
+
+    process->sleep_ticks = num_ticks;
     process->state = PROC_BLOCKED;
 
     // Handle empty sleeper list case
@@ -37,7 +39,7 @@ int sleep(pcb *process, unsigned int milliseconds) {
     pcb *cur = sleep_delta_list;
     pcb *prev = NULL;
     while (cur != NULL) {
-        if (milliseconds < cur->sleep_time) {
+        if (num_ticks < cur->sleep_ticks) {
             // Handle head case
             if (prev == NULL) {
                 process->next = sleep_delta_list;
@@ -59,24 +61,27 @@ int sleep(pcb *process, unsigned int milliseconds) {
 }
 
 /**
- * Loops through sleep queue and decreases each process' time by TICK_TIME.
+ * Loops through sleep queue and decreases each process' sleep ticks.
  * When a process' time is up, the process is rescheduled to ready queue.
+ *
+ * TODO: If you have time fix this so it uses a delta list.
  */
 void tick() {
     pcb *cur = sleep_delta_list;
     while (cur != NULL) {
-        cur->sleep_time -= TICK_TIME;
+        // TODO: just decrease the number of ticks not the time
+        cur->sleep_ticks -= 1;
         // Always update return value with remaining
         // sleep time; if process is woken early, 
         // it will then return with the time remaining
-        cur->ret_value = cur->sleep_time;
+        cur->ret_value = ticks_to_ms(cur->sleep_ticks);
         cur = cur->next;
     }
 
     cur = sleep_delta_list;
     pcb *prev = NULL;
     while (cur != NULL) {
-        if (cur->sleep_time <= 0) {
+        if (cur->sleep_ticks == 0) {
             if (prev == NULL) {
                 // Advance head
                 sleep_delta_list = cur->next;
@@ -84,9 +89,6 @@ void tick() {
                 // 'Cut out' the process from the list
                 prev->next = cur->next;
             }
-            // For this assignment we never wake up early
-            cur->ret_value = 0;
-            //LOG("Finished sleeping %d.", cur->pid);
             enqueue_in_ready(cur);
         }
         prev = cur;
@@ -128,14 +130,43 @@ int on_sleeper_queue(pcb *process) {
     return 0;
 }
 
+
+/**
+ * Convert ticks to milliseconds.
+ */
+int ticks_to_ms(int num_ticks) {
+    return num_ticks * TICK_MILLISECONDS;
+}
+
+
+/**
+ * Convert milliseconds to ticks.
+ */
+int ms_to_ticks(int ms) {
+    return (ms/TICK_MILLISECONDS + (ms%TICK_MILLISECONDS > 0));
+}
+
+
+/* ======================================================================
+ *                              TESTING
+ * ====================================================================== */
+
 // For debugging 
 void print_sleep_list(void) {
     pcb *head = sleep_delta_list;
     while (head) {
         kprintf("PID: %d\n", head->pid);
-        kprintf("Time remaining: %d\n", head->sleep_time);
+        kprintf("Ticks remaining: %d\n", head->sleep_ticks);
         head = head->next;
     }
+}
+
+
+/**
+ * Return the amount of time (ms) that's left for the given process to sleep
+ */
+int get_sleep_time(pcb *process) {
+    return ticks_to_ms(process->sleep_ticks);
 }
 
 
@@ -148,6 +179,12 @@ void print_sleep_list(void) {
  * - PCB added back correctly to ready queue.
  **/
 void test_sleep(void) {
+
+    ASSERT_INT_EQ(1, ms_to_ticks(10));
+    ASSERT_INT_EQ(2, ms_to_ticks(11));
+    ASSERT_INT_EQ(1, ms_to_ticks(9));
+    ASSERT_INT_EQ(0, ms_to_ticks(0));
+
     // TEST 1: Create 4 PCBs with different sleep times,
     // add them to sleep queue.
     // Ensure that they get added in the correct order.
@@ -156,27 +193,16 @@ void test_sleep(void) {
     pcb *pcb_3 = init_test_pcb(1500);
     pcb *pcb_4 = init_test_pcb(500);
 
-    sleep(pcb_1, pcb_1->sleep_time);
-    sleep(pcb_2, pcb_2->sleep_time);
-    sleep(pcb_3, pcb_3->sleep_time);
-    sleep(pcb_4, pcb_4->sleep_time);
+    sleep(pcb_1, get_sleep_time(pcb_1));
+    sleep(pcb_2, get_sleep_time(pcb_2));
+    sleep(pcb_3, get_sleep_time(pcb_3));
+    sleep(pcb_4, get_sleep_time(pcb_4));
+
+    int expected_times[4] = {500, 1000, 1500, 2000};
 
     pcb *cur = sleep_delta_list;
     for (int i = 0; i < 4; i++) {
-        switch (i) {
-            case 0:
-                ASSERT(cur->sleep_time == 500, "Order wrong!");
-                break;
-            case 1:
-                ASSERT(cur->sleep_time == 1000, "Order wrong!");
-                break;
-            case 2:
-                ASSERT(cur->sleep_time == 1500, "Order wrong!");
-                break;
-            case 3:
-                ASSERT(cur->sleep_time == 2000, "Order wrong!");
-                break;
-        }
+        ASSERT_INT_EQ(expected_times[i], get_sleep_time(cur));
         cur = cur->next;
     }
 
@@ -199,10 +225,10 @@ void test_sleep(void) {
     pcb_3->pid = 3;
     pcb_4->pid = 4;
 
-    sleep(pcb_1, pcb_1->sleep_time);
-    sleep(pcb_2, pcb_2->sleep_time);
-    sleep(pcb_3, pcb_3->sleep_time);
-    sleep(pcb_4, pcb_4->sleep_time);
+    sleep(pcb_1, get_sleep_time(pcb_1));
+    sleep(pcb_2, get_sleep_time(pcb_2));
+    sleep(pcb_3, get_sleep_time(pcb_3));
+    sleep(pcb_4, get_sleep_time(pcb_4));
 
     ASSERT_INT_EQ(4, get_length_pcb_list(sleep_delta_list));
 
@@ -285,7 +311,7 @@ pcb *init_test_pcb(unsigned int milliseconds) {
     // a sleep time.
     pcb *test_pcb = kmalloc(sizeof(pcb));
     test_pcb->state = PROC_BLOCKED;
-    test_pcb->sleep_time = milliseconds;
+    test_pcb->sleep_ticks = ms_to_ticks(milliseconds);
     test_pcb->priority = 3;
     test_pcb->next = NULL;
     test_pcb->sending_to_pid = NULL;

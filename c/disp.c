@@ -294,7 +294,7 @@ extern void dispatch(void) {
                 // Tick the clock and signal completion
                 tick();
                 end_of_intr();
-                process->num_ticks++;
+                process->timer_ticks++;
 
                 // Ensure we don't enqueue idle process
                 // TODO: Put this in enqueue_in_ready
@@ -790,7 +790,7 @@ int get_cpu_times(process_statuses *proc_stats) {
         proc_stats->pid[current_slot] = pcb_table[i].pid;
         proc_stats->status[current_slot] = pcb_table[i].state;
         proc_stats->cpu_time[current_slot] =
-                pcb_table[i].num_ticks * TICK_MILLISECONDS;
+                ticks_to_ms(pcb_table[i].timer_ticks);
     }
     proc_stats->length = current_slot + 1;
     return current_slot;

@@ -77,9 +77,11 @@ typedef unsigned int size_t; /* Something that can hold the value of
 #define MAX_OPEN_FILES 4
 #define MAX_SIGNALS 32
 
-// TODO: Total guess. I just don't feel like figuring out how many
-//  milliseconds I should actually put here right now.
-#define TICK_MILLISECONDS 100
+// The approx. number of milliseconds per tick
+#define TICK_MILLISECONDS (10)
+// Passed to initPIT to make the timer goes off every TICK_MILLISECONDS
+#define TICK_DIVISOR (1000/TICK_MILLISECONDS)
+
 
 void           bzero(void *base, int cnt);
 void           bcopy(const void *src, void *dest, unsigned int n);
@@ -151,9 +153,8 @@ struct pcb_s {
     int ret_value;            // The value to return to proc after sys call.
     int old_ret_value;        // Used in signaling to save old ret value
     int priority;             // Scheduling priority.
-    int sleep_time;           // TODO: change to sleep_ticks
-    // TODO: Change name to timer ticks
-    long num_ticks;           // Number of ticks used by this.
+    int sleep_ticks;          // The number of ticks the proc should sleep for
+    long timer_ticks;         // Number of ticks used by this.
     pcb *next;                // Generic next pcb; used for queues.
     pcb_queue sender_queue;   // pcbs wanting to send to this.
     pcb_queue receiver_queue; // pcbs wanting to recv from this.
@@ -294,6 +295,8 @@ void tick(void);
 void print_sleep_list(void);
 void pull_from_sleep_list(pcb *process);
 int  on_sleeper_queue(pcb *process);
+int  ms_to_ticks(int ms);
+int  ticks_to_ms(int num_ticks);
 
 
 // signal.c

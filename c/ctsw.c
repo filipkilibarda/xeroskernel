@@ -115,7 +115,5 @@ void contextinit() {
     set_evec(SYSCALL_IDT_INDEX,  (unsigned long) _syscall_entry);
     set_evec(TIMER_IDT_INDEX,    (unsigned long) _timer_entry);
     set_evec(KEYBOARD_IDT_INDEX, (unsigned long) _keyboard_entry);
-    // TODO: This is right. This is saying timer interrupt every 1/100 of
-    //  second
-    initPIT(100);
+    initPIT(TICK_DIVISOR);
 }
