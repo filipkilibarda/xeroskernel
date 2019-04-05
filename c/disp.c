@@ -17,9 +17,10 @@ extern int end;
 pcb pcb_table[MAX_PCBS];
 
 void free_process_memory(pcb *process);
-int count_pcbs(pcb_queue *queue);
-int get_cpu_times(process_statuses *proc_stats);
-int is_valid_pid(PID_t pid);
+int  count_pcbs(pcb_queue *queue);
+int  get_cpu_times(process_statuses *proc_stats);
+int  is_valid_pid(PID_t pid);
+void remove_from_waiting_queue(pcb *process);
 
 static char *proc_state_str[4] = {"READY", "RUNNING", "STOPPED", "BLOCKED"};
 
@@ -172,9 +173,7 @@ extern void dispatch(void) {
                 pid = GET_ARG(PID_t, 0);
                 signal_num = GET_ARG(int, sizeof(PID_t));
 
-                process->ret_value = kill(pid, signal_num);
-                LOG("Signal %d sent %d->%d RC %d", signal_num, process->pid,
-                            pid, process->ret_value);
+                process->ret_value = signal(pid, signal_num);
                 enqueue_in_ready(process);
                 process = dequeue_from_ready();
                 break;
@@ -334,6 +333,7 @@ void free_process_memory(pcb *process) {
  * what system call it made.
  **/
 int stop_process(PID_t pid) {
+    LOG("Stopping process %d", pid);
     pcb *process = get_active_pcb(pid);
     // Process with given PID doesn't exist
     if (!process) return -1;
@@ -418,7 +418,7 @@ void unblock(pcb *process) {
     remove_from_waiting_queue(process);
     remove_from_ipc_queues(process);
     pull_from_sleep_list(process);
-    enqueue_in_ready(process_to_signal);
+    enqueue_in_ready(process);
 }
 
 
@@ -890,8 +890,8 @@ void wake_up_waiters(pcb *process) {
  * TODO
  */
 void remove_from_waiting_queue(pcb *process) {
-    pcb *other_process = get_active_pcb(process->wait_for_pid);
+    pcb *other_process = get_active_pcb(process->waiting_for_pid);
     if (!other_process)
         return;
-    pull_from_queue(other_process->waiter_queue, process);
+    pull_from_queue(&other_process->waiter_queue, process);
 }

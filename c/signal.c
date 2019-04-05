@@ -7,10 +7,10 @@
 #include <i386.h>
 #include <test.h>
 
-int get_highest_signal_number(unsigned long pending_signals);
-void init_signal_context(pcb *process_to_signal);
+int get_highest_signal_number(unsigned long pending_sig_mask);
+void init_sig_context(pcb *process_to_signal);
 
-// Signal masks, used for updating pending_signals
+// Signal masks, used for updating pending_sig_mask
 // each mask is indexed to turn on/off a single bit 
 // starting from the rightmost bit (signal 0) to 
 // leftmost bit (signal 31)
@@ -25,20 +25,6 @@ unsigned long sig_masks[MAX_SIGNALS] =
 0x10000000, 0x20000000, 0x40000000, 0x80000000};
 
 
-// TODO docs
-typedef struct signal_context {
-    unsigned long empty_registers[NUM_GP_REGISTERS]; //
-    unsigned long eip;                               //  All this is popped off
-    unsigned long cs;                                //  in the context switcher
-    unsigned long eflags;                            //
-    void *empty_return_address; // Needs to be here cause compiler expects it
-    funcptr_t handler;          // First arg to trampoline!
-    void *process_context;      // Second arg to trampoline!
-    unsigned long signal_code;    // Signal number for this signal context
-    unsigned long old_return_val; // Saving the return val of the process
-} signal_context_t;
-
-
 /**
  * Function that automatically tells you if your program is broken.
  * It's amazing.
@@ -48,36 +34,96 @@ void somethings_broken_function(void) {
 }
 
 
+int has_pending_signals(pcb* process) {
+    if (!process->sig_context)
+        return process->pending_sig_mask > 0;
+    return (process->pending_sig_mask /
+            (1 << process->sig_context->signal_num)) > 0;
+}
+
+
 /**
  * TODO
  */
-int has_pending_signals(pcb *process) {
-    process->sig
-    return process->pending_signals > 0;
+ // TODO: write simple test for this
+int get_pending_sig_num(pcb *process) {
+
+    int pending_sig_mask = process->pending_sig_mask;
+
+    if (!has_pending_signals(process))
+        return -1;
+
+    int signal_num = -1;
+    for (int i = 0; i < MAX_SIGNALS; i++) {
+        if (pending_sig_mask == 0)
+            break;
+        pending_sig_mask >>= 1;
+        signal_num++;
+    }
+    return signal_num;
+}
+
+
+int get_current_sig_num(pcb *process) {
+    if (!process->sig_context)
+        return -1;
+    return process->sig_context->signal_num;
+}
+
+
+int is_signal_pending(pcb *process, int signal_num) {
+    return (process->pending_sig_mask & (1 << signal_num)) > 0;
+}
+
+
+void set_signal(pcb *process, int signal_num) {
+    process->pending_sig_mask |= 1 << signal_num;
+}
+
+
+void clear_signal(pcb *process, int signal_num) {
+    process->pending_sig_mask &= ~(1 << signal_num);
+}
+
+
+funcptr_t get_sig_handler(pcb *process, int signal_num) {
+    return process->sig_handlers[signal_num];
 }
 
 
 /**
  * Setup the signal context for the current highest priority pending signal.
  */
-void setup_signal_context(pcb *process) {
+void setup_sig_context(pcb *process, int signal_num) {
 
-    if (!has_pending_signals(process))
-        FAIL("Bug. Shouldn't call this if there aren't pending signals.");
+    if (get_current_sig_num(process) >= signal_num)
+        FAIL("Bug should not end up here.");
 
-    if ((process))
+    if (!is_signal_pending(process, signal_num))
+        FAIL("Bug. Shouldn't be setting a signal if it's not pending.");
+
+    LOG("Setting up sig %d for pid %d", signal_num, process->pid);
 
     // Overlay the signal context over the process' stack
-    signal_context_t *signal_context =
-            process->stack_ptr - sizeof(signal_context);
-    // TODO: set the registers to zero
-//    memset(signal_context->empty_registers, 0, NUM_GP_REGISTERS)
+    sig_context_t *sig_context = process->stack_ptr - sizeof(sig_context_t);
+    memset(sig_context->empty_registers, 0, NUM_GP_REGISTERS*sizeof(void *));
     // TODO: Make sure this pointer this is right... wtf
-    signal_context->eip = sig_tramp;
-    signal_context->cs = getCS();
-    signal_context->eflags = PROCESS_EFLAGS;
-    signal_context->empty_return_address = somethings_broken_function;
-    signal_context->handler = get_signal_handler(process, signal_num);
+    sig_context->eip = (unsigned long) sigtramp;
+    sig_context->cs = getCS();
+    sig_context->eflags = PROCESS_EFLAGS;
+    sig_context->empty_return_address = somethings_broken_function;
+    sig_context->handler = get_sig_handler(process, signal_num);
+    sig_context->process_context = process->stack_ptr;
+    sig_context->signal_num = signal_num;
+    sig_context->old_ret_value = process->ret_value;
+
+    // Setup the linked list of signal contexts on the stack
+    sig_context->prev_sig_context = process->sig_context;
+    process->sig_context = sig_context;
+
+    process->stack_ptr = sig_context;
+
+    clear_signal(process, signal_num);
 }
 
 
@@ -101,11 +147,11 @@ int signal(PID_t pid, int signal_num) {
 
     pcb *process_to_signal = get_active_pcb(pid);
 
-    if (!process_to_signal) return -514;
-    if (!is_valid_signal_num(signal_num)) return -583;
+    if (!process_to_signal)                                  return -514;
+    if (!is_valid_signal_num(signal_num))                    return -583;
     if (process_to_signal->sig_handlers[signal_num] == NULL) return 0;
 
-    process_to_signal->pending_signals |= 1 << signal_num;
+    set_signal(process_to_signal, signal_num);
 
     if (is_blocked(process_to_signal)) {
         if (!on_sleeper_queue(process_to_signal)) {
@@ -117,40 +163,9 @@ int signal(PID_t pid, int signal_num) {
         unblock(process_to_signal);
         return 0;
     }
-
-    // Get the handler
-    handler = process_to_signal->sig_handlers[signal_num];
-
-    // Check if there's already a signal pending
-    int pending_signal = 
-    get_highest_signal_number(process_to_signal->pending_signals);
-
-    // Update signal mask (should be done no matter what) 
-    process_to_signal->pending_signals =
-    process_to_signal->pending_signals | sig_masks[signal_num];
-
-    proc_stack = process_to_signal->stack_ptr;
-    CS = getCS();
-    OLD_RV = process_to_signal->ret_value;
-
-    // If there's a pending signal with higher priority,
-    // set up its signal context.
-    if (pending_signal > signal_num) {
-        signal_code = pending_signal;
-        init_signal_context(process_to_signal);
-        process_to_signal->sig_stack_size++;
-    }
-    // Otherwise, check current signal priority to 
-    // determine whether to send the signal 
-    else if (process_to_signal->sig_prio < signal_num) {
-        signal_code = signal_num;
-        init_signal_context(process_to_signal);
-        process_to_signal->sig_stack_size++;
-    }
-
-    // Stub (TODO: Is there something meaningful that this should return?)
     return 0;
 }
+
 
 /**
  * Signal trampoline placed on process stack as EIP when 
@@ -159,12 +174,10 @@ int signal(PID_t pid, int signal_num) {
  * function after calling syssigreturn. 
  **/ 
 void sigtramp(void (*handler)(void *), void *context) {
-    //kprintf("SIGTRAMP: Calling handler\n");
+    LOG("Starting sigtramp");
     handler(context);
     // Rewind stack to point to old context, and 
     // restore previous return value.
-    //kprintf("SIGTRAMP: Calling syssigreturn\n");
-    kprintf("Doing syssigreturn\n");
     syssigreturn(context);
 }
 
@@ -177,64 +190,64 @@ void sigtramp(void (*handler)(void *), void *context) {
  * Pushes current return value of process to be recovered
  * by syssigreturn()
  */
-void init_signal_context(pcb *process_to_signal) {
-    process_to_signal->sig_prio = signal_code;
-
-        __asm __volatile( " \
-            movl %%esp, kern_stack \n\
-            movl proc_stack, %%esp \n\
-            push proc_stack \n\
-            push handler \n\
-            push GP_REGISTER \n\
-            push EFLAGS \n\
-            push CS \n\
-            push EIP \n\
-            push signal_code \n\
-            push proc_stack \n\
-            push OLD_RV \n\
-            push GP_REGISTER \n\
-            push GP_REGISTER \n\
-            push GP_REGISTER \n\
-            push GP_REGISTER \n\
-            push GP_REGISTER \n\
-            movl %%esp, proc_stack \n\
-            movl kern_stack, %%esp \n\
-        "
-        :
-        :
-        :
-        );
-
-        process_to_signal->stack_ptr = proc_stack;
-}
+//void init_sig_context(pcb *process_to_signal) {
+//    process_to_signal->sig_prio = signal_num;
+//
+//        __asm __volatile( " \
+//            movl %%esp, kern_stack \n\
+//            movl proc_stack, %%esp \n\
+//            push proc_stack \n\
+//            push handler \n\
+//            push GP_REGISTER \n\
+//            push EFLAGS \n\
+//            push CS \n\
+//            push EIP \n\
+//            push signal_num \n\
+//            push proc_stack \n\
+//            push OLD_RV \n\
+//            push GP_REGISTER \n\
+//            push GP_REGISTER \n\
+//            push GP_REGISTER \n\
+//            push GP_REGISTER \n\
+//            push GP_REGISTER \n\
+//            movl %%esp, proc_stack \n\
+//            movl kern_stack, %%esp \n\
+//        "
+//        :
+//        :
+//        :
+//        );
+//
+//        process_to_signal->stack_ptr = proc_stack;
+//}
 
 /**
  * Returns the highest signal number that exists in the mask.
  * If there is no signal pending in mask, returns -2.
  */
-int get_highest_signal_number(unsigned long pending_signals) {
-    int highest_so_far = 0;
-    for (int i = 0; i < MAX_SIGNALS; i ++) {
-        int mask = pending_signals;
-        mask = mask & sig_masks[i];
-        if (mask > highest_so_far) {
-            highest_so_far = i + 1;
-        }    
-    }
-
-    // because I made the mask values go from 1 - 32, 
-    // subtract 1 to get the actual signal number
-    if (highest_so_far == 0) return -2;
-    return highest_so_far - 1;
-}
-
-
+//int get_highest_signal_number(unsigned long pending_sig_mask) {
+//    int highest_so_far = 0;
+//    for (int i = 0; i < MAX_SIGNALS; i ++) {
+//        int mask = pending_sig_mask;
+//        mask = mask & sig_masks[i];
+//        if (mask > highest_so_far) {
+//            highest_so_far = i + 1;
+//        }
+//    }
+//
+//    // because I made the mask values go from 1 - 32,
+//    // subtract 1 to get the actual signal number
+//    if (highest_so_far == 0) return -2;
+//    return highest_so_far - 1;
+//}
+//
+//
 /**
  * Returns the signal mask for a specified signal number
  */
-unsigned long get_pending_signals(int signal_num) {
-    return sig_masks[signal_num];
-}
+//unsigned long get_pending_sig_mask(int signal_num) {
+//    return sig_masks[signal_num];
+//}
 
 
 /**
@@ -251,82 +264,52 @@ int is_valid_signal_num(int signal_num) {
  *
  * Sends a signal to a process (doesn't necessarily kill it).
  */
-int kill(PID_t pid, int signal_num) {
-
-    // Make sure pid to send to exists
-    pcb *receiving_process = get_active_pcb(pid);
-
-    if (!receiving_process) return -514;
-    if (!is_valid_signal_num(signal_num)) return -583;
-
-    // No handler for this signal, ignore it
-    if (receiving_process->sig_handlers[signal_num] == NULL)
-        return 0;
-
-    // If process to signal is blocked, set its return value to -666, unless it
-    // is sleeping
-    if (is_blocked(receiving_process)) {
-
-        if (!on_sleeper_queue(receiving_process))
-            receiving_process->ret_value = INTERRUPTED_SYSCALL;
-
-        // Clear all IPC state from this process because we're cancelling any
-        // system call it was making (including IPC system calls)
-        remove_from_ipc_queues(receiving_process);
-
-        LOG("Pulling from sleep list");
-        // TODO: No need to pull from sleep list everytime
-        pull_from_sleep_list(receiving_process);
-        enqueue_in_ready(receiving_process);
-
-        signal(pid, signal_num);
-        return 0;
-
-    } else {
-        signal(pid, signal_num);
-        return 0;
-    }
-}
+//int kill(PID_t pid, int signal_num) {
+//
+//    // Make sure pid to send to exists
+//    pcb *receiving_process = get_active_pcb(pid);
+//
+//    if (!receiving_process) return -514;
+//    if (!is_valid_signal_num(signal_num)) return -583;
+//
+//    // No handler for this signal, ignore it
+//    if (receiving_process->sig_handlers[signal_num] == NULL)
+//        return 0;
+//
+//    // If process to signal is blocked, set its return value to -666, unless it
+//    // is sleeping
+//    if (is_blocked(receiving_process)) {
+//
+//        if (!on_sleeper_queue(receiving_process))
+//            receiving_process->ret_value = INTERRUPTED_SYSCALL;
+//
+//        // Clear all IPC state from this process because we're cancelling any
+//        // system call it was making (including IPC system calls)
+//        remove_from_ipc_queues(receiving_process);
+//
+//        LOG("Pulling from sleep list");
+//        // TODO: No need to pull from sleep list everytime
+//        pull_from_sleep_list(receiving_process);
+//        enqueue_in_ready(receiving_process);
+//
+//        signal(pid, signal_num);
+//        return 0;
+//
+//    } else {
+//        signal(pid, signal_num);
+//        return 0;
+//    }
+//}
 
 
 /**
  * Kernel side implementation of the system call syssigreturn.
  */
 int sigreturn(pcb *process, void *old_sp) {
-    // Determine which signal was just sent and reset its bit in mask
-    // TODO: We should reset the bit mask when we start hanlding the signal,
-    //  not when we finish
-    // TODO: Would be great if -4 were not hardcoded
-    int signal_num = *((int *) (process->eip_ptr - 4));
-    unsigned long mask = get_pending_signals(signal_num);
-    process->pending_signals = process->pending_signals ^ mask;
-
-    process->sig_stack_size--;
-
-    int highest_signal = get_highest_signal_number(process->pending_signals);
-    // TODO: 
-    // Reset current signal priority in PCB
-    // If signalstack != 0 
-    // Grab signal off stack below
-    if (process->sig_stack_size != 0) {
-        // I'm like, 10% sure this is correct
-        process->sig_prio = *((int *) (process->stack_ptr - 28));
-    }
-    // else check mask for a signal 
-    else if (highest_signal != -2) {
-        process->sig_prio = highest_signal;
-    }
-    else {
-        // Else set to -1
-        process->sig_prio = -1;
-    }
-
-    // Update stack pointer
-    process->stack_ptr = old_sp;
-
-    // Restore old return value
-    // TODO: Would be great if 36 were not hardcoded
-    return *((int *) (old_sp + 36));
+    int ret_value = process->sig_context->old_ret_value;
+    process->stack_ptr = process->sig_context->process_context;
+    process->sig_context = process->sig_context->prev_sig_context;
+    return ret_value;
 }
 
 
@@ -365,8 +348,135 @@ int sighandler(pcb *process, int signal_num, funcptr_t newHandler,
 
 
 // =============================================================================
-// Testing
+//                           Testing
 // =============================================================================
+
+// ======================================================
+//              Test signal helpers
+// ======================================================
+
+
+pcb *init_dummy_process(void) {
+    int _dummy_stack_var;
+    pcb *process = dequeue_from_stopped();
+    process->stack_ptr = (&_dummy_stack_var) - 200;
+    process->ret_value = 1337;
+    return process;
+}
+
+
+/**
+ * This should not be run inside of a process.
+ */
+void test_signal_helpers(void) {
+    reset_pcb_table();
+
+    pcb *process = init_dummy_process();
+
+    // Check that signal mask math is right
+    ASSERT_INT_EQ(NULL, (int) process->sig_context);
+    ASSERT_INT_EQ(NULL, process->pending_sig_mask);
+    set_signal(process, 0);
+    ASSERT_INT_EQ(1, process->pending_sig_mask);
+    set_signal(process, 0);
+    ASSERT_INT_EQ(1, process->pending_sig_mask);
+    clear_signal(process, 0);
+    ASSERT_INT_EQ(0, process->pending_sig_mask);
+    clear_signal(process, 0);
+    ASSERT_INT_EQ(0, process->pending_sig_mask);
+    set_signal(process, 0);
+    set_signal(process, 1);
+    ASSERT_INT_EQ(3, process->pending_sig_mask);
+    clear_signal(process, 2);
+    ASSERT_INT_EQ(3, process->pending_sig_mask);
+    clear_signal(process, 0);
+    ASSERT_INT_EQ(2, process->pending_sig_mask);
+    clear_signal(process, 0);
+    ASSERT_INT_EQ(2, process->pending_sig_mask);
+    clear_signal(process, 1);
+    ASSERT_INT_EQ(0, process->pending_sig_mask);
+
+    ASSERT_INT_EQ(0, is_signal_pending(process, 0));
+    set_signal(process, 0);
+    ASSERT_INT_EQ(1, is_signal_pending(process, 0));
+    clear_signal(process, 0);
+    ASSERT_INT_EQ(0, is_signal_pending(process, 0));
+
+    // Do we figure out if a process has pending signals correctly?
+    ASSERT_INT_EQ(-1, get_pending_sig_num(process));
+    set_signal(process, 1);
+    ASSERT_INT_EQ(1, get_pending_sig_num(process));
+    set_signal(process, 2);
+    set_signal(process, 3);
+    ASSERT_INT_EQ(3, get_pending_sig_num(process));
+    clear_signal(process, 3);
+    ASSERT_INT_EQ(2, get_pending_sig_num(process));
+    clear_signal(process, 2);
+    ASSERT_INT_EQ(1, get_pending_sig_num(process));
+    clear_signal(process, 1);
+    ASSERT_INT_EQ(-1, get_pending_sig_num(process));
+
+    // Slightly more in depth; get pending signals correctly?
+    set_signal(process, 1);
+    setup_sig_context(process, 1);
+    ASSERT_INT_EQ(-1, get_pending_sig_num(process));
+    clear_signal(process, 1);
+    set_signal(process, 2);
+    ASSERT_INT_EQ(2, get_pending_sig_num(process));
+    clear_signal(process, 2);
+
+    // ========================================
+    // Test the sig context
+    // ========================================
+    process = init_dummy_process();
+    process->ret_value = 1337;
+    void *initial_stack_ptr = process->stack_ptr;
+
+    // Setup one context
+    set_signal(process, 0);
+    setup_sig_context(process, 0);
+    process->ret_value = 777;
+    ASSERT_INT_EQ(1337, process->sig_context->old_ret_value);
+    __asm __volatile("push $9":::); // Push to simulate running process
+
+    // Setup next context
+    set_signal(process, 1);
+    setup_sig_context(process, 1);
+    process->ret_value = 888;
+
+    ASSERT_INT_EQ(1337, process->sig_context->prev_sig_context->old_ret_value);
+    ASSERT_INT_EQ(-1, get_pending_sig_num(process));
+    ASSERT_INT_EQ(1, get_current_sig_num(process));
+    process->ret_value = sigreturn(process, NULL);
+    ASSERT_INT_EQ(0, get_current_sig_num(process));
+    ASSERT_INT_EQ(777, process->ret_value);
+    ASSERT_INT_EQ(1337, process->sig_context->old_ret_value);
+
+    // Setup another context on top
+    set_signal(process, 2);
+    setup_sig_context(process, 2);
+    process->ret_value = 999;
+
+    ASSERT_INT_EQ(2, get_current_sig_num(process));
+    process->ret_value = sigreturn(process, NULL);
+    ASSERT_INT_EQ(0, get_current_sig_num(process));
+    ASSERT_INT_EQ(777, process->ret_value);
+
+    ASSERT_INT_EQ(1337, process->sig_context->old_ret_value);
+    process->ret_value = sigreturn(process, NULL);
+    ASSERT_INT_EQ(1337, process->ret_value);
+
+    ASSERT_INT_EQ((int) initial_stack_ptr, (int) process->stack_ptr);
+    ASSERT_INT_EQ(0, process->pending_sig_mask);
+
+    reset_pcb_table();
+}
+
+
+// ======================================================
+//              Other tests
+// ======================================================
+
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-function"
@@ -447,8 +557,7 @@ void sig_low_priority(void *param) {
  */
 void _test_signal(void) {
     int initial_num_stopped = get_num_stopped_processes();
-
-    // A basic test of syssigkill() functionality 
+    // A basic test of syssigkill() functionality
     // TEST 1: Ensure that one process can signal another 
     PID_t p1 = syscreate(test_process, DEFAULT_STACK_SIZE);
     pcb *p1_pcb = get_active_pcb(p1);
@@ -579,29 +688,29 @@ void _test_signal(void) {
 // =============================================================================
 
 
-void handler2(void *context) {
-    kprintf("hi");
-}
-
-
-void _test_signal2(void) {
-
-    // =======================================================================
-    // Signal yourself
-    // =======================================================================
-
-    funcptr_t old_handler;
-    PID_t pid = sysgetpid();
-    int high_prio_runs = 0;
-    int low_prio_runs = 0;
-
-    int num_runs = 0;
-
-    syssighandler(0, handler2, &old_handler);
-    SYSKILL(pid, 0);
-    ASSERT_INT_EQ(1, num_runs);
-
-    STOP;
+//void handler2(void *context) {
+//    kprintf("hi");
+//}
+//
+//
+//void _test_signal2(void) {
+//
+//    // =======================================================================
+//    // Signal yourself
+//    // =======================================================================
+//
+//    funcptr_t old_handler;
+//    PID_t pid = sysgetpid();
+//    int high_prio_runs = 0;
+//    int low_prio_runs = 0;
+//
+//    int num_runs = 0;
+//
+//    syssighandler(0, handler2, &old_handler);
+//    SYSKILL(pid, 0);
+//    ASSERT_INT_EQ(1, num_runs);
+//
+//    STOP;
 
 // =======================================================================
 // TEST Signal a process multiple times
@@ -632,7 +741,4 @@ void _test_signal2(void) {
 // signal to itself. The signal handler should in fact run twice.
 // =======================================================================
 // TODO
-
-
-
-}
+//}

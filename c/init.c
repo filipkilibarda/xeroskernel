@@ -48,6 +48,7 @@ void initproc(void) {
     pcb_init();
     RUN_TEST(test_dispatcher);
     RUN_TEST(test_sleep);
+    RUN_TEST(test_signal_helpers);
 
     contextinit();
     init_ipc();

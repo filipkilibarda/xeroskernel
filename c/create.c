@@ -100,12 +100,14 @@ pcb *setup_process(void (*func)(void), int stack_size, int priority) {
     free_pcb->receiver_queue = queue_constructor();
     free_pcb->sender_queue = queue_constructor();
     free_pcb->waiter_queue = queue_constructor();
+
     free_pcb->receiving_from_pid = NULL;
     free_pcb->sending_to_pid = NULL;
+    free_pcb->waiting_for_pid = NULL;
+
     free_pcb->timer_ticks = 0;
-    free_pcb->pending_signals = (unsigned long) 0x00000000;
-    free_pcb->sig_prio = -1; // No signals have been sent, so no priority set.
-    free_pcb->sig_stack_size = 0; // Initially no signals sent
+    free_pcb->pending_sig_mask = 0;
+    free_pcb->sig_context = NULL;
 
     // Setup a file descriptor table for this process.
     fdt_constructor(free_pcb->fdt);

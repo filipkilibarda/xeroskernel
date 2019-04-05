@@ -173,7 +173,7 @@ int syssighandler(int signal, void (*newHandler)(void *), void (**oldHandler)(vo
  * Performs a return from the signal trampoline code
  * Will only ever be called by the signal trampoline code
  * Updates the PCB's stack pointer field, and retrieves
- * any saved return value. Updates the PCB's pending_signals
+ * any saved return value. Updates the PCB's pending_sig_mask
  * field to indicate that the current signal being finished
  * can be delivered again.
  */

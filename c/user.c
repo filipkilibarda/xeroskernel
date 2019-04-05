@@ -49,6 +49,8 @@ void consumer(void) {
  * Used for testing.
  **/
 void simple_process(void) {
+    PID_t pid = sysgetpid();
+    LOG("Running inside process %d", pid);
     for(;;) sysyield();
 }
 
@@ -56,13 +58,12 @@ void simple_process(void) {
 /**
  * Test that syscreate returns the PID on success and -1 on failure.
  **/
-void test_syscreate_return_value(void) {
-    LOG("==== Starting test for syscreate_return_value ====");
+void test_syscreate(void) {
+    LOG("==== syscreate_return_value ====");
 
     int original_num = num_ready_processes();
 
     int pid = syscreate(simple_process, 4096);
-    LOG("PID is %d", pid);
     ASSERT_INT_EQ(1, num_ready_processes());
     ASSERT(pid >= 0, "Expected PID to be greater than 0");
     ASSERT_INT_EQ(PROC_READY, get_state(pid));
@@ -250,7 +251,7 @@ void idleproc(void) {
 void root(void) {
     // Tests
     // =====
-    syswait(create(test_syscreate_return_value, DEFAULT_STACK_SIZE));
+    syswait(create(test_syscreate, DEFAULT_STACK_SIZE));
     syswait(create(test_pcb_table_full, DEFAULT_STACK_SIZE));
     syswait(create(test_stack_too_big, DEFAULT_STACK_SIZE));
     syswait(create(test_invalid_process_code, DEFAULT_STACK_SIZE));

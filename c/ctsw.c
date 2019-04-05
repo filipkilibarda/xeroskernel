@@ -47,12 +47,14 @@ static unsigned long hardware_interrupt_num;
  */
 int contextswitch(pcb *process) {
 
-    // TODO: Reset any pending signal mask bit
+    int pending_sig_num = get_pending_sig_num(process);
+    if (pending_sig_num > -1) {
+        setup_sig_context(process, pending_sig_num);
+        LOG("Context switching to process %d", process->pid);
+    }
+
     ESP = process->stack_ptr;
     retval = process->ret_value;
-
-    if (has_pending_signals(process))
-        setup_signal_context(process);
 
     __asm __volatile(
             "pushf;"                  // Save kernel context
@@ -107,7 +109,7 @@ int contextswitch(pcb *process) {
         process->ret_value = EMPTY_RETURN_VALUE;
     }
 
-    procgss->stack_ptr = ESP;
+    process->stack_ptr = ESP;
     process->eip_ptr = eip_ptr;
     return req_id;
 }

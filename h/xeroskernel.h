@@ -57,7 +57,7 @@ typedef unsigned int size_t; /* Something that can hold the value of
 #define INTERRUPTED_SYSCALL -666
 
 // The number of general purpose registers in our architecture
-#define NUM_GP_REGISTERS 8;
+#define NUM_GP_REGISTERS 8
 
 #define SYSCALL_IDT_INDEX  60 // Used for generic syscall interface
 #define TIMER_IDT_INDEX    32
@@ -141,6 +141,21 @@ struct fdt_entry {
 };
 
 
+typedef struct sig_context sig_context_t;
+struct sig_context {
+    unsigned long empty_registers[NUM_GP_REGISTERS]; //
+    unsigned long eip;                               //  All this is popped off
+    unsigned long cs;                                //  in the context switcher
+    unsigned long eflags;                            //
+    void *empty_return_address; // Needs to be here cause compiler expects it
+    funcptr_t handler;          // First arg to trampoline!
+    void *process_context;      // Second arg to trampoline!
+    unsigned long signal_num;    // Signal number for this signal context
+    unsigned long old_ret_value; // Saving the return val of the process
+    sig_context_t *prev_sig_context; // The previous signal
+};
+
+
 // Process Control Block
 struct pcb_s {
     PID_t pid;
@@ -159,14 +174,13 @@ struct pcb_s {
     pcb *next;                // Generic next pcb; used for queues.
     pcb_queue sender_queue;   // pcbs wanting to send to this.
     pcb_queue receiver_queue; // pcbs wanting to recv from this.
+    pcb_queue waiter_queue;   // pcbs wanting to wait for this to end.
     PID_t receiving_from_pid; // PID that this is blocked receiving from.
     PID_t sending_to_pid;     // PID that this is blocked sending to.
     PID_t waiting_for_pid;    // The process we're waiting on to die
-    int sig_stack_size;       // Number of signals on the current process stack.
+    unsigned long pending_sig_mask;   // Mask holding currently pending signals
     void *sig_handlers[MAX_SIGNALS]; // Signal handlers for this process
-    unsigned long pending_signals;   // Mask holding currently pending signals
-    int sig_prio;             // Current highest priority signal
-    pcb_queue waiter_queue;   // pcbs wanting to wait for this to end.
+    sig_context_t *sig_context;
     fdt_entry_t fdt[MAX_OPEN_FILES];
 };
 
@@ -230,6 +244,7 @@ void      enqueue_in_waiters(pcb *process, pcb *wait_for);
 void      wake_up_waiters(pcb *process);
 void      clean_up_devices(pcb *process);
 int       is_valid_pid(PID_t pid);
+void      unblock(pcb *process);
 
 
 // create.c
@@ -289,12 +304,14 @@ int  ticks_to_ms(int num_ticks);
 // signal.c
 int           signal(PID_t pid, int signal_num);
 void          sigtramp(void (*handler)(void *), void *context);
-unsigned long get_pending_signals(int signal_num);
+unsigned long get_pending_sig_mask(int signal_num);
 int           is_valid_signal_num(int signal_num);
 int           kill(PID_t pid, int signal_num);
 int           sigreturn(pcb *process, void *old_sp);
 int           sighandler(pcb *process, int signal_num, funcptr_t newHandler,
                          funcptr_t *oldHandler);
+int           get_pending_sig_num(pcb *process);
+void          setup_sig_context(pcb *process, int signal_num);
 
 
 // di_calls.c
@@ -313,6 +330,7 @@ void test_sleep(void);
 void test_time_slice(void);
 void test_signal(void);
 void test_kb(void);
+void test_signal_helpers(void);
 
 
 extern pcb pcb_table[];       // The table of process ctrl blocks
