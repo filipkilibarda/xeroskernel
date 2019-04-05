@@ -150,19 +150,19 @@ unsigned int syssleep(unsigned int milliseconds) {
 }
 
 /**
- * Registers the specified handler (newHandler) as the signal
- * handler for the specified signal, updating oldHandler to
+ * Registers the specified handler (new_handler) as the signal
+ * handler for the specified signal, updating old_handler to
  * point to the address of the previously registered handler.
  *
  * Returns one of the following:
  * - if signal number provided is invalid, -1
  * - if trying to register signal 31, -1
- * - if newHandler is located at invalid address, -2
- * - if oldHandler points to illegal memory location, -3
+ * - if new_handler is located at invalid address, -2
+ * - if old_handler points to illegal memory location, -3
  * - on success, return 0
  */
-int syssighandler(int signal, void (*newHandler)(void *), void (**oldHandler)(void *)) {
-    return syscall(SYSCALL_SIG_HANDLER, signal, newHandler, oldHandler);
+int syssighandler(int signal, void (*new_handler)(void *), void (**old_handler)(void *)) {
+    return syscall(SYSCALL_SIG_HANDLER, signal, new_handler, old_handler);
 }
 
 /**

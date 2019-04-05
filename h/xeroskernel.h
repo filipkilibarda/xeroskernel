@@ -271,7 +271,7 @@ int          syssetprio(int priority);
 int          syssend(PID_t dest_pid, unsigned long num);
 int          sysrecv(PID_t *from_pid, unsigned long * num);
 unsigned int syssleep(unsigned int milliseconds);
-int          syssighandler(int signal, void (*newHandler)(void *), void (**oldHandler)(void *));
+int          syssighandler(int signal, void (*new_handler)(void *), void (**old_handler)(void *));
 void         syssigreturn(void *old_sp);
 int          syswait(PID_t pid);
 int          sysopen(int device_no);
@@ -310,8 +310,8 @@ unsigned long get_pending_sig_mask(int signal_num);
 int           is_valid_signal_num(int signal_num);
 int           kill(PID_t pid, int signal_num);
 int           sigreturn(pcb *process, void *old_sp);
-int           sighandler(pcb *process, int signal_num, funcptr_t newHandler,
-                         funcptr_t *oldHandler);
+int           sighandler(pcb *process, int signal_num, funcptr_t new_handler,
+                         funcptr_t *old_handler);
 int           get_pending_sig_num(pcb *process);
 void          setup_sig_context(pcb *process, int signal_num);
 

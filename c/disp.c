@@ -105,8 +105,8 @@ extern void dispatch(void) {
     unsigned long data;           // used in SYSCALL_SEND
     int signal_num;               // used in SYSCALL_KILL & SIG_HANDLER
     process_statuses *proc_stats; // used in SYSCALL_GET_CPU_TIMES
-    funcptr_t newHandler;         // used in SYSCALL_SIG_HANDLER
-    funcptr_t *oldHandler;        // used in SYSCALL_SIG_HANDLER
+    funcptr_t new_handler;         // used in SYSCALL_SIG_HANDLER
+    funcptr_t *old_handler;        // used in SYSCALL_SIG_HANDLER
     void *old_sp;                 // used in SYSCALL_SIGRETURN
     int kill_result;
     int fd;
@@ -209,11 +209,11 @@ extern void dispatch(void) {
 
             case SYSCALL_SIG_HANDLER:
                 signal_num = GET_ARG(int, 0);
-                // TODO: camel case
-                newHandler = GET_ARG(funcptr_t, sizeof(int));
-                oldHandler = GET_ARG(funcptr_t *, sizeof(funcptr_t) + sizeof(int));
+                new_handler = GET_ARG(funcptr_t, sizeof(int));
+                old_handler = GET_ARG(
+                        funcptr_t *, sizeof(funcptr_t) + sizeof(int));
                 process->ret_value = sighandler(
-                        process, signal_num, newHandler, oldHandler);
+                        process, signal_num, new_handler, old_handler);
                 enqueue_in_ready(process);
                 process = dequeue_from_ready();
                 break;

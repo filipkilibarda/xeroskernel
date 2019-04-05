@@ -355,9 +355,9 @@ void t(void) {
  * Handler installed by the a() command.
  */
 void alarm_handler(void *context) {
-    funcptr_t oldHandler;
+    funcptr_t old_handler;
     sysputs("ALARM, ALARM, ALARM\n");
-    syssighandler(18, NULL, &oldHandler);
+    syssighandler(18, NULL, &old_handler);
 }
 
 
@@ -386,8 +386,8 @@ void alarm_process(void) {
 void a(int milliseconds, char *buff, int length) {
     global_milliseconds = milliseconds;
 
-    funcptr_t oldHandler;
-    if (syssighandler(18, alarm_handler, &oldHandler) != 0) {
+    funcptr_t old_handler;
+    if (syssighandler(18, alarm_handler, &old_handler) != 0) {
         sysputs("Failed to install the alarm signal handler!");
         return;
     }

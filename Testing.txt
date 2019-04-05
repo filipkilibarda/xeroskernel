@@ -27,9 +27,9 @@ RESULT: PASSES
 
 #2 - syssighandler() test case 
 TEST: 
-- Attempt to pass in oldHandler pointer at an invalid address
+- Attempt to pass in old_handler pointer at an invalid address
 
-EXPECT: Should return -3 to indicate that oldHandler is at invalid address 
+EXPECT: Should return -3 to indicate that old_handler is at invalid address
 RESULT: PASSES
 
 #3 - syskill() test case 
@@ -91,9 +91,9 @@ get copied into the buffer of the user.
 RESULT: PASSES
 
 #9 - Two test cases for scenarios not covered here or in the test program. 
-SCENARIO 1: attempt to install a newHandler at an invalid memory 
+SCENARIO 1: attempt to install a new_handler at an invalid memory
 address in syssighandler()
-EXPECT: Should return -2 indicating newHandler is invalid 
+EXPECT: Should return -2 indicating new_handler is invalid
 RESULT: PASSES 
 
 SCENARIO 2: attempt to signal a process blocked on a send 

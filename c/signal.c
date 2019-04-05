@@ -10,8 +10,8 @@
  *      int  signal(PID_t pid, int signal_num)
  *      void sigtramp(void (*handler)(void *), void *context)
  *      int  sigreturn(pcb *process, void *old_sp)
- *      int  sighandler(pcb *process, int signal_num, funcptr_t newHandler,
- *                      funcptr_t *oldHandler)
+ *      int  sighandler(pcb *process, int signal_num, funcptr_t new_handler,
+ *                      funcptr_t *old_handler)
  *      int  is_valid_signal_num(int signal_num)
  *
  */
@@ -140,17 +140,17 @@ int sigreturn(pcb *process, void *old_sp) {
  *
  * Thus, the return codes here are exactly this same as syssighandler.
  */
-int sighandler(pcb *process, int signal_num, funcptr_t newHandler,
-               funcptr_t *oldHandler)
+int sighandler(pcb *process, int signal_num, funcptr_t new_handler,
+               funcptr_t *old_handler)
 {
-    unsigned long nh = (unsigned long) newHandler;
-    unsigned long oh = (unsigned long) oldHandler;
+    unsigned long nh = (unsigned long) new_handler;
+    unsigned long oh = (unsigned long) old_handler;
     if (!is_valid_signal_num(signal_num) || signal_num == 31) return -1;
     if (nh && !within_kernel_memory_bounds(nh))               return -2;
     if (!within_kernel_memory_bounds(oh))                     return -3;
 
-    *oldHandler = get_sig_handler(process, signal_num);
-    set_sig_handler(process, newHandler, signal_num);
+    *old_handler = get_sig_handler(process, signal_num);
+    set_sig_handler(process, new_handler, signal_num);
     LOG("Registered handler %d for proc %d", signal_num, process->pid);
     return 0;
 }
@@ -415,9 +415,9 @@ void test_process_prints(void) {
 }
 
 void register_handler_loop(void) {
-    funcptr_t newHandler = &test_handler;
-    funcptr_t oldHandler;
-    int result = syssighandler(2, newHandler, &oldHandler);
+    funcptr_t new_handler = &test_handler;
+    funcptr_t old_handler;
+    int result = syssighandler(2, new_handler, &old_handler);
     ASSERT_INT_EQ(0, result);
     result = syssleep(10000); 
     ASSERT(result > 0, "Result should have been > 0\n");
@@ -469,8 +469,8 @@ void _test_signal(void) {
     int initial_free_memory = total_free_memory();
 
     PID_t p1;
-    funcptr_t newHandler = NULL;
-    funcptr_t oldHandler = NULL;
+    funcptr_t new_handler = NULL;
+    funcptr_t old_handler = NULL;
     int result;
 
     // A basic test of syssigkill() functionality
@@ -488,34 +488,34 @@ void _test_signal(void) {
     // ======================================================
 
     // TEST 2: attempt to register handler for invalid signals
-    result = syssighandler(-3, newHandler, &oldHandler);
+    result = syssighandler(-3, new_handler, &old_handler);
     ASSERT_INT_EQ(result, -1);
-    result = syssighandler(32, newHandler, &oldHandler);
+    result = syssighandler(32, new_handler, &old_handler);
     ASSERT_INT_EQ(result, -1);
 
     // TEST 3: attempt to register handler for signal 31
-    result = syssighandler(31, newHandler, &oldHandler);
+    result = syssighandler(31, new_handler, &old_handler);
     ASSERT_INT_EQ(-1, result);
 
-    // TEST 4: attempt to register newHandler at invalid addresses
-    result = syssighandler(10, (funcptr_t) (HOLESTART + 10), &oldHandler);
+    // TEST 4: attempt to register new_handler at invalid addresses
+    result = syssighandler(10, (funcptr_t) (HOLESTART + 10), &old_handler);
     ASSERT_INT_EQ(-2, result);
-    result = syssighandler(4, (funcptr_t) (END_OF_MEMORY + 10), &oldHandler);
+    result = syssighandler(4, (funcptr_t) (END_OF_MEMORY + 10), &old_handler);
     ASSERT_INT_EQ(-2, result);
-    // TODO: test NULL newHandler (expect 0)
+    // TODO: test NULL new_handler (expect 0)
 
-    // TEST 5: attempt to pass in oldHandler pointer at invalid addresses
-    result = syssighandler(5, newHandler, (funcptr_t *) (HOLESTART + 10));
+    // TEST 5: attempt to pass in old_handler pointer at invalid addresses
+    result = syssighandler(5, new_handler, (funcptr_t *) (HOLESTART + 10));
     ASSERT_INT_EQ(-3, result);
-    result = syssighandler(6, newHandler, (funcptr_t *) (END_OF_MEMORY + 10));
+    result = syssighandler(6, new_handler, (funcptr_t *) (END_OF_MEMORY + 10));
     ASSERT_INT_EQ(-3, result);
-    // TODO: test NULL oldHandler (expect -3)
+    // TODO: test NULL old_handler (expect -3)
 
     // TEST 6: successfully install a 'handler'
-    result = syssighandler(4, newHandler, &oldHandler);
+    result = syssighandler(4, new_handler, &old_handler);
     ASSERT_INT_EQ(0, result);
     // Since the signal table was empty, there shouldn't be anything here
-    ASSERT(oldHandler == NULL, "oldHandler should be NULL\n");
+    ASSERT(old_handler == NULL, "old_handler should be NULL\n");
 
     // TEST 7: attempt to signal default behavior ('ignore' signal)
     p1 = syscreate(test_process_prints, DEFAULT_STACK_SIZE);
@@ -573,8 +573,8 @@ void _test_signal(void) {
 
     // TEST 15: prioritization and signals interrupting each other
     // Expect that higher priority signal handler will run first
-    int handler_one = syssighandler(3, sig_low_priority, &oldHandler);
-    int handler_two = syssighandler(5, sig_high_priority, &oldHandler);
+    int handler_one = syssighandler(3, sig_low_priority, &old_handler);
+    int handler_two = syssighandler(5, sig_high_priority, &old_handler);
     ASSERT_INT_EQ(0, handler_one);
     ASSERT_INT_EQ(0, handler_two);
     syskill(sysgetpid(), 3);
