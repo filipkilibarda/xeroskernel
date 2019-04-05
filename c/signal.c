@@ -396,6 +396,13 @@ void sig_low_priority(void *param) {
     sysputs("I'm a lower priority\n");
 }
 
+
+/**
+ * Helper for sending signals and checking successful return.
+ */
+#define SYSKILL(pid, signal_num) ASSERT_INT_EQ(0, syskill(pid, signal_num))
+
+
 /**
  * Test the signal functionality
  */
@@ -519,7 +526,74 @@ void _test_signal(void) {
     // TEST 16: attempt to do a syswait() on a non-existent process
     int syswait_result = syswait(10000);
     ASSERT_INT_EQ(-1, syswait_result);
+}
 
-    
+
+// =============================================================================
+// =============================================================================
+// =============================================================================
+// =============================================================================
+//                          MORE TESTS
+// =============================================================================
+// =============================================================================
+// =============================================================================
+// =============================================================================
+
+
+void handler2(void *context) {
+    kprintf("hi");
+}
+
+
+void _test_signal2(void) {
+
+    // =======================================================================
+    // Signal yourself
+    // =======================================================================
+
+    funcptr_t old_handler;
+    PID_t pid = sysgetpid();
+    int high_prio_runs = 0;
+    int low_prio_runs = 0;
+
+    int num_runs = 0;
+
+    syssighandler(0, handler2, &old_handler);
+    SYSKILL(pid, 0);
+    ASSERT_INT_EQ(1, num_runs);
+
+    STOP;
+
+// =======================================================================
+// TEST Signal a process multiple times
+// =======================================================================
+
+//    void high_prio_handler(void *context) {
+//        high_prio_runs++;
+//        SYSKILL(pid, 0);
+//        ASSERT_INT_EQ(0, low_prio_runs);
+//    }
+//
+//    void low_prio_handler(void *context) {
+//        low_prio_runs++;
+//        ASSERT_INT_EQ(1, high_prio_runs);
+//        SYSKILL(pid, 1);
+//        ASSERT_INT_EQ(2, high_prio_runs);
+//    }
+//
+//    syssighandler(1, high_prio_handler, &old_handler);
+//    syssighandler(0, low_prio_handler, &old_handler);
+//
+//    SYSKILL(pid, 1);
+//    ASSERT_INT_EQ(1, low_prio_runs);
+//    ASSERT_INT_EQ(2, high_prio_runs);
+
+// =======================================================================
+// Simple test case like above except have a signal handler send the same
+// signal to itself. The signal handler should in fact run twice.
+// =======================================================================
+// TODO
+
+
 
 }
