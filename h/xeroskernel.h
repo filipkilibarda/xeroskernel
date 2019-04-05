@@ -132,10 +132,7 @@ typedef struct pcb_queue_s {
 
 // File descriptor table entry
 struct fdt_entry {
-    int fdt_index;    // The index that this entry occupies in its fdt
     device_t *device; // Pointer to the device that the fd is open for
-    // TODO: Might want more info here like whether the fdt_entry is actually
-    //  open. Maybe not, we'll see.
 };
 
 

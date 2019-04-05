@@ -159,9 +159,7 @@ PID_t generate_pid(pcb *process) {
  * Setup a file descriptor table given a pointer to it.
  */
 void fdt_constructor(fdt_entry_t fdt[]) {
-    // TODO: Might wanna get rid of fdt_index b/c we don't really need it
     for (int i = 0; i < MAX_OPEN_FILES; i++) {
-        fdt[i].fdt_index = i;
         fdt[i].device = NULL;
     }
 }
