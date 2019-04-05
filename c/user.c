@@ -350,11 +350,10 @@ void t(void) {
  */
 void alarm_handler(void * param) {
     funcptr_t newHandler = NULL;
-    funcptr_t *oldHandler = (funcptr_t *) kmalloc(sizeof(funcptr_t));
-    kprintf("ALARM, ALARM, ALARM\n");
+    funcptr_t *oldHandler;  
+    sysputs("ALARM, ALARM, ALARM\n");
     syssighandler(18, newHandler, oldHandler);
-    kprintf("Disabled signal 18\n");
-    kfree(oldHandler);
+    sysputs("Disabled signal 18\n");
 }
 
 /**
@@ -365,7 +364,7 @@ void alarm_handler(void * param) {
 void alarm_process(void) {
     syssleep(num_seconds);
     kprintf("Signaling shell\n");
-    // TODO
+    // TODO: check return value
     syskill(shell_pid, 18);
 }
 
@@ -382,12 +381,14 @@ void alarm_process(void) {
  */
 void a(int milliseconds, char *buff, int length) {
     funcptr_t *oldHandler = (funcptr_t *) kmalloc(sizeof(funcptr_t*));
+    // TODO: check return value
     syssighandler(18, alarm_handler, oldHandler);
     num_seconds = milliseconds;
 
     PID_t alarm = syscreate(alarm_process, DEFAULT_STACK_SIZE);
     // If buff ends in &, run in background, else wait.
     if (buff[length - 2] != '&') {
+        // TODO: check return value 
         syswait(alarm);
         sysputs("Done waiting for alarm process\n");
     } else {

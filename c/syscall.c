@@ -292,8 +292,7 @@ void wait(pcb *process, PID_t pid) {
         enqueue_in_ready(process);
 
     } else if (process->pid == pid) {
-        // TODO: is this really not allowed? I assume so,
-        //  but it doesn't really specify
+        // This is how they do it in Linux so we're gonna too
         LOG("Waiting on self is not allowed");
         process->ret_value = -1;
         enqueue_in_ready(process);
