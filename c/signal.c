@@ -204,6 +204,11 @@ int kill(PID_t pid, int signal_num) {
     if (!receiving_process)
         return -514;
 
+    // No handler for this signal, ignore it
+    if (is_valid_signal_num(signal_num) && 
+    receiving_process->sig_handlers[signal_num] == NULL) 
+    return 0;
+
     // If process to signal is blocked, set its return value to -666, unless it
     // is sleeping
     if (is_blocked(receiving_process)) {
