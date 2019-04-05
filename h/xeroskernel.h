@@ -55,8 +55,6 @@ typedef unsigned int size_t; /* Something that can hold the value of
 
 #define SYSCALL_IDT_INDEX  60 // Used for generic syscall interface
 #define TIMER_IDT_INDEX    32
-// TODO: How do we choose which index in the IDT to put the keyboard ISR?
-//  Guessing it'll be 33, but what's the reason for that?
 #define KEYBOARD_IDT_INDEX 33 // Index into the interrupt descriptor table
 
 #define END_OF_MEMORY 0x400000
@@ -71,8 +69,6 @@ typedef unsigned int size_t; /* Something that can hold the value of
 #define PROC_STOPPED 2
 #define PROC_BLOCKED 3
 
-// TODO: Assignment description says only 2 devices will be in our kernel so
-//  that's why I'm choosing 2 here.
 #define MAX_DEVICES 2
 #define MAX_OPEN_FILES 4
 #define MAX_SIGNALS 32
@@ -166,23 +162,15 @@ struct pcb_s {
 };
 
 
-// TODO: Update func decl. below s.t. take actual params
 struct device {
     int  (*open)(PID_t pid);
     int  (*close)(int fd);
     int  (*read)(void *buff, unsigned int bufflen);
     int  (*write)(void *buff, unsigned int bufflen);
     int  (*ioctl)(int command, va_list ap);
-    // TODO: Honestly, the way we're doing it, we don't even need the major num,
-    //  just use the index of the device in the table as the major num. If we
-    //  were thinking about making our OS more general then yeah we'd need
-    //  it, but within the scope of this assignment we don't.
-    //  I agree, we shouldn't need major number. 
-    //    int  major_num;
 };
 
-// TODO: Clarify w/ TAs if this struct should be exactly the same as
-//  what they gave us for a3 starter code
+
 typedef struct struct_ps process_statuses;
 struct struct_ps {
     int   length;             // Number of entries that are populated.
@@ -191,14 +179,6 @@ struct struct_ps {
     long  cpu_time[MAX_PCBS]; // CPU time used in milliseconds
 };
 
-
-// TODO: We could probably get rid of the safety zone since everything is
-//  working. Will do it once things are stable.
-struct safety_zone_s {
-    long one;
-    long two;
-};
-typedef struct safety_zone_s safety_zone;
 
 void        contextinit(void);
 extern void pcb_init(void);

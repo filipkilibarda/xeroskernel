@@ -64,7 +64,7 @@ pcb *setup_process(void (*func)(void), int stack_size, int priority) {
         return NULL;
     }
 
-    ESP = free_pcb->stack_end + stack_size - sizeof(safety_zone);
+    ESP = free_pcb->stack_end + stack_size;
     EIP = func;
     CS = getCS();
 
