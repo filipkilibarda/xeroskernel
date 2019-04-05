@@ -104,7 +104,7 @@ void        _test_keyboard(void);
 int keyboard_open(PID_t pid) {
 
     if (is_locked()) {
-        LOG("Keyboard is already in use!, holding_pid is %d", holding_pid);
+        LOG("Keyboard is already in use!, holding_pid is %d\n", holding_pid);
         return 0;
     }
 
@@ -121,10 +121,9 @@ int keyboard_open(PID_t pid) {
  * Return 1 otherwise.
  */
 int keyboard_open_echoing(PID_t pid) {
-    // TODO: Unnecessarily duplicated code, just call keyboard_open above
 
     if (is_locked()) {
-        LOG("Keyboard is already in use!, holding_pid is %d", holding_pid);
+        LOG("Keyboard is already in use!, holding_pid is %d\n", holding_pid);
         return 0;
     }
 
@@ -159,15 +158,15 @@ int keyboard_write(void *void_buff, unsigned int bufflen) {
  * Read from the keyboard. This function is referenced in the keyboard device
  * structure and constitutes the upper half of the keyboard driver.
  *
- * Returns:
- *     -1 if process blocked
- *     0  if EOF was pressed
- *     1  if read finished successfully
+ * Returns: 
+ * -1 if process blocked
+ * 0 if EOF was pressed
+ * 1 if read finished successfully 
  */
 int keyboard_read(void *_buff, unsigned int bufflen) {
+    pcb *reading_process = get_pcb(holding_pid);
+    ASSERT(reading_process != NULL, "did not get the process correctly\n");
     char *buff = (char *) _buff;
-    pcb *reading_process = get_active_pcb(holding_pid);
-    ASSERT(reading_process != NULL, "Did not get the process correctly");
     read_md.process = reading_process;
     read_md.buff = buff;
     read_md.bufflen = bufflen;
@@ -175,16 +174,16 @@ int keyboard_read(void *_buff, unsigned int bufflen) {
 
     // result will indicate number of bytes read from kernel buffer
     int result = 
-    copy_from_kernel_buff(read_md.buff, read_md.bufflen, read_md.num_read);
+    copy_from_kernel_buff(read_md.buff, read_md.bufflen, read_md.num_read);    
 
     if (result == -2) {
         reading_process->ret_value = 0;
         enqueue_in_ready(reading_process);
         return 0;
-    }
+    } 
 
     read_md.num_read += result;
-
+    
     // if num_read is less than bufflen, block the process 
     // and update the read_md struct to reflect # read so far
     if (read_md.num_read < bufflen) {
@@ -201,16 +200,15 @@ int keyboard_read(void *_buff, unsigned int bufflen) {
 
 /**
  * Interface for non-standard interactions with the keyboard device.
- *
- * Returns 0 on success, -1 on failure.
+ * 
+ * Returns 0 on success, -1 on failure. 
  */
 int keyboard_ioctl(int command, va_list ap) {
     int new_eof;
 
     switch(command) {
-        // TODO: Unhardcode the numbers here. Use define statements
         case 53:
-            // Sets new EOF
+            // Sets new EOF 
             new_eof = va_arg(ap, int);
             eof_indicator = new_eof;
             break;
@@ -294,7 +292,7 @@ void notify_upper_half(void) {
             if (read_md.num_read == read_md.bufflen) {
                 enqueue_in_ready(read_md.process);
             }
-        }
+        } 
     }
 }
 
@@ -303,8 +301,8 @@ void notify_upper_half(void) {
  * provided buffer. 
  * 
  * Returns the number of bytes read into the buffer from
- * the kernel buffer, -1 if enter was pressed, or -2 if
- * current EOF indicator was pressed.
+ * the kernel buffer, -1 if enter was pressed, or -2 if 
+ * current EOF indicator was pressed.  
  */
 int copy_from_kernel_buff(char *buff, unsigned long bufflen, 
 unsigned long num_read) {
@@ -325,15 +323,14 @@ unsigned long num_read) {
             if (read_char == ENTER) {
                 read_md.process->ret_value = read_md.num_read + bytes_read;
                 enqueue_in_ready(read_md.process);
-                // TODO: Clear the read meta data?
                 return -1;
             } else if (read_char == eof_indicator) {
-                // Disable the keyboard at this point,
+                // Disable the keyboard at this point, 
                 // return indication that EOF was entered
                 enable_irq(KEYBOARD_IRQ, 1);
                 // Set FDT entry to NULL
-                pcb *process = get_active_pcb(holding_pid);
-                // NOTE: this is hacky as hell
+                pcb *process = get_pcb(holding_pid);
+                // NOTE: this is hacky as hell 
                 process->fdt[0].device = NULL;
                 process->fdt[1].device = NULL;
                 holding_pid = 0;
@@ -377,7 +374,7 @@ void read_char(void) {
         unsigned char ascii = convert_to_ascii(data);
         
         // If we're an echoing keyboard, we'll print 
-        if (echoing && ascii != NOCHAR && ascii != eof_indicator)
+        if (echoing && ascii != NOCHAR && ascii != eof_indicator) 
         kprintf("%c", ascii);
 
         // Put the ASCII character into the kernel buffer
@@ -396,9 +393,6 @@ void read_char(void) {
  */
 void put_in_buffer(unsigned char ascii) {
     for (int i = 0; i < KEYBOARD_BUFFLEN; i++) {
-        // TODO: Not optimal?
-        //  1) loop over buffer everytime
-        //  2) NULL char is special here. Should it be?
         if (kernel_buff[i] == NULL) {
             kernel_buff[i] = ascii;
             break;
@@ -413,7 +407,7 @@ void put_in_buffer(unsigned char ascii) {
  */
 unsigned int convert_to_ascii(unsigned char code) {
    unsigned int    ch;
-
+  
   if (code & KEY_UP) {
     switch (code & 0x7f) {
     case LSHIFT:
@@ -507,6 +501,21 @@ void _test_keyboard(void) {
     // TODO: Multiple attempts to open keyboard should fail
     // TODO: Attempt to open both keyboard devices should fail
     // TODO: Multiple processes opening keyboard, only one should succeed
+    // Test open on invalid device number
+    int sysopen_result = sysopen(12);
+    ASSERT_INT_EQ(-1, sysopen_result);
+
+    // Test syswrite to an invalid file descriptor
+    char buff[10];
+    int syswrite_result = syswrite(20, buff, 10);
+    ASSERT_INT_EQ(-1, syswrite_result);
+
+    // Test sysioctl() with an invalid command number
+    int fd = sysopen(0);
+    int sysioctl_result = sysioctl(fd, 60);
+    ASSERT_INT_EQ(-1, sysioctl_result);
+    sysclose(fd);
+
     PID_t test_proc = syscreate(reader_process, DEFAULT_STACK_SIZE);
     syswait(test_proc);
     kprintf("Ending test!\n");

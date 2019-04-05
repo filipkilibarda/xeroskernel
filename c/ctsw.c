@@ -40,6 +40,7 @@ static unsigned long hardware_interrupt_num;
  */
 int contextswitch(pcb *process) {
 
+    // TODO: Reset any pending signal mask bit
     ESP = process->stack_ptr;
     retval = process->ret_value;
     __asm __volatile(

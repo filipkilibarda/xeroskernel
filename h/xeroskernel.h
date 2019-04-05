@@ -151,15 +151,16 @@ struct pcb_s {
     int ret_value;            // The value to return to proc after sys call.
     int old_ret_value;        // Used in signaling to save old ret value
     int priority;             // Scheduling priority.
-    int sleep_time;
+    int sleep_time;           // TODO: change to sleep_ticks
     long num_ticks;           // Number of ticks used by this.
     pcb *next;                // Generic next pcb; used for queues.
     pcb_queue sender_queue;   // pcbs wanting to send to this.
     pcb_queue receiver_queue; // pcbs wanting to recv from this.
     PID_t receiving_from_pid; // PID that this is blocked receiving from.
     PID_t sending_to_pid;     // PID that this is blocked sending to.
-    void *sig_handlers[MAX_SIGNALS];
-    unsigned long sig_mask;
+    int sig_stack_size;       // Number of signals on the current process stack.
+    void *sig_handlers[MAX_SIGNALS]; // Signal handlers for this process
+    unsigned long sig_mask;   // Mask holding currently pending signals
     int sig_prio;             // Current highest priority signal
     pcb_queue waiter_queue;   // pcbs wanting to wait for this to end.
     fdt_entry_t fdt[MAX_OPEN_FILES];

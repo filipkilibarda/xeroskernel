@@ -23,7 +23,7 @@ TEST:
 
 EXPECT: "I'm a higher priority" should be printed before 
 "I'm a lower priority" is. 
-RESULT: 
+RESULT: (Not sure this test is formulated correctly, revisit)
 
 #2 - syssighandler() test case 
 TEST: 
@@ -46,7 +46,7 @@ TEST:
 
 EXPECT: 
 - Should return -1
-RESULT: 
+RESULT: PASSES
 
 #5 - sysopen() with invalid arguments
 TEST: 
@@ -54,7 +54,7 @@ TEST:
 
 EXPECT: 
 - Should return -1
-RESULT: 
+RESULT: PASSES
 
 #6 - syswrite() with invalid file descriptor
 TEST: 
@@ -62,7 +62,7 @@ TEST:
 
 EXPECT:
 - Should return -1
-RESULT: 
+RESULT: PASSES
 
 #7 - sysioctl() test for invalid arguments 
 TEST: 
@@ -70,7 +70,7 @@ TEST:
 
 EXPECT: 
 - Should return -1
-RESULT: 
+RESULT: PASSES
 
 #8 - sysread() when there are more characters buffered 
 in kernel than read requests

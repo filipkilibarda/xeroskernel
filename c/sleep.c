@@ -21,6 +21,7 @@ static pcb *init_test_pcb(unsigned int milliseconds);
  */
 int sleep(pcb *process, unsigned int milliseconds) {
     // Set PCB metadata
+    // TODO: divide by TICK_MS to get # of ticks
     process->sleep_time = milliseconds;
     process->state = PROC_BLOCKED;
 

@@ -163,13 +163,13 @@ int get_highest_signal_number(unsigned long sig_mask) {
         int mask = sig_mask;
         mask = mask & sig_masks[i];
         if (mask > highest_so_far) {
-            highest_so_far = mask;
+            highest_so_far = i + 1;
         }    
     }
 
     // because I made the mask values go from 1 - 32, 
     // subtract 1 to get the actual signal number
-    if (highest_so_far - 1 == -1) return -2;
+    if (highest_so_far == 0) return -2;
     return highest_so_far - 1;
 }
 
@@ -246,7 +246,14 @@ int sigreturn(pcb *process, void *old_sp) {
     unsigned long mask = get_sig_mask(signal_num);
     process->sig_mask = process->sig_mask ^ mask;
 
+    // TODO: 
     // Reset current signal priority in PCB
+    // If signalstack != 0 
+    // Grab signal off stack below
+
+    // else check mask for a signal 
+
+    // Else set to -1
     process->sig_prio = -1;
 
     // Update stack pointer
@@ -354,6 +361,14 @@ void sleep_a_while(void) {
     ASSERT(result > 0, "Result should have been > 0\n");
 }
 
+void sig_high_priority(void *param) {
+    sysputs("I'm a higher priority\n");
+}
+
+void sig_low_priority(void *param) {
+    syswait(2000);
+    sysputs("I'm a lower priority\n");
+}
 
 /**
  * Test the signal functionality
@@ -375,7 +390,7 @@ void _test_signal(void) {
     // BEGIN SYSSIGHANDLER TESTS
     // ======================================================
     funcptr_t newHandler; 
-    funcptr_t *oldHandler;
+    funcptr_t* oldHandler;
 
     // TEST 2: attempt to register handler for invalid signals
     newHandler = (funcptr_t) kmalloc(16);
@@ -397,6 +412,7 @@ void _test_signal(void) {
     newHandler = (funcptr_t) (END_OF_MEMORY + 10);
     result = syssighandler(4, newHandler, oldHandler);
     ASSERT_INT_EQ(-2, result);
+    // TODO: test NULL newHandler (expect 0)
 
     // TEST 5: attempt to pass in oldHandler pointer at invalid addresses
     newHandler = kmalloc(16);
@@ -407,6 +423,7 @@ void _test_signal(void) {
     oldHandler = (funcptr_t *) (END_OF_MEMORY + 10);
     result = syssighandler(6, newHandler, oldHandler);
     ASSERT_INT_EQ(-3, result);
+    // TODO: test NULL oldHandler (expect -3)
 
     // TEST 6: successfully install a 'handler' 
     oldHandler = kmalloc(16);
@@ -423,7 +440,6 @@ void _test_signal(void) {
     ASSERT_INT_EQ(0, syskill(p1, 2));
     
     // TEST 8: attempt to signal while a process is blocked sleeping
-    // - should return -666
     LOG("Handler is %x", &test_handler);
     PID_t p2 = syscreate(register_handler_loop, DEFAULT_STACK_SIZE);
     LOG("PID is %d", p2);
@@ -433,7 +449,6 @@ void _test_signal(void) {
 
     syssleep(1000);
     // TEST 9: attempt to signal a process blocked on a send
-    // expect result of send to be -666 in p3
     proc = syscreate(test_process, DEFAULT_STACK_SIZE);
     PID_t p3 = syscreate(send_signal_int, DEFAULT_STACK_SIZE);
     ASSERT_INT_EQ(0, syskill(p3, 4));
@@ -447,7 +462,7 @@ void _test_signal(void) {
     ASSERT_INT_EQ(-514, result);
 
     // TEST 12: syswait on a process, then kill that process it's 
-    // waiting on. 
+    // ting on. 
     // Expect that this will cause us to return control back to next line
     proc = syscreate(test_process, DEFAULT_STACK_SIZE);
     syscreate(proc_killer, DEFAULT_STACK_SIZE);
@@ -460,4 +475,26 @@ void _test_signal(void) {
     syssleep(1000);
     LOG("Calling syskill on sleeper");
     ASSERT_INT_EQ(0, syskill(sleeper, 5));
+
+    // TODO:
+    // TEST 14: Signal a non-blocking system call
+    // Expect that ssysigreturn will retrieve the old return 
+    // value of the non-blocking system call, and thus
+    // the value will be returned as normal.
+
+    // TEST 15: prioritization and signals interrupting each other
+    // Expect that higher priority signal handler will run first
+    int handler_one = syssighandler(3, sig_low_priority, oldHandler);
+    int handler_two = syssighandler(5, sig_high_priority, oldHandler);
+    ASSERT_INT_EQ(0, handler_one);
+    ASSERT_INT_EQ(0, handler_two);
+    syskill(sysgetpid(), 3);
+    syskill(sysgetpid(), 5);
+
+    // TEST 16: attempt to do a syswait() on a non-existent process
+    int syswait_result = syswait(10000);
+    ASSERT_INT_EQ(-1, syswait_result);
+
+    // 
+
 }
