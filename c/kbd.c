@@ -544,6 +544,8 @@ unsigned int convert_to_ascii(unsigned char code) {
  *                        Tests
  * ======================================================== */
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-function"
 void print_buffer() {
     for (int i = 0; i < KEYBOARD_BUFFLEN; i++) {
         LOCK(
@@ -678,3 +680,4 @@ void _test_keyboard(void) {
     ASSERT_INT_EQ(0, sysread(fd, read_buff, 4));
     syswait(pid);
 }
+#pragma GCC diagnostic pop
