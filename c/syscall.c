@@ -55,10 +55,6 @@ int syscall(int call, ...) {
  * Returns the process ID of the created process.
  * */
 unsigned int syscreate(void (*func)(void), int stack_size) {
-    // Ensure function pointer is within legal bounds
-    if ((int *) func > &end) {
-        return -1;
-    }
     return syscall(SYSCALL_CREATE, func, stack_size);
 }
 

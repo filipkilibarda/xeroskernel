@@ -5,6 +5,7 @@
  * TODO: More docs?
  **/
 
+#include <i386.h>
 #include <xeroskernel.h>
 #include <xeroslib.h>
 #include <test.h>
@@ -13,7 +14,7 @@
 void wait_for_free_pcbs(int num_pcbs);
 static PID_t root_pid; // Stores root PID for message passing purposes
 static PID_t shell_pid; // used by a() to signal the shell. 
-int num_seconds;
+int global_milliseconds;
 
 
 /**
@@ -143,8 +144,8 @@ void test_stack_too_big(void) {
  * our current kernel.
  **/
 void test_invalid_process_code(void) {
-    void *user_memory = kmalloc(4096);
-    int create_result = syscreate(user_memory, 4096);
+    void *process_code = (void *) HOLESTART + 10;
+    int create_result = syscreate(process_code, DEFAULT_STACK_SIZE);
     ASSERT(create_result == -1, "Should not have been able to create process"); 
 }
 
@@ -272,14 +273,11 @@ void root(void) {
  */
 int verify_user(char *user, char *pass, int len1, int len2) {
     if (strncmp(user, "cs415\n", len1) == 0 &&
-    strncmp(pass, "EveryonegetsanA\n", len2) == 0) {
-        //kprintf("%s\n", pass);
+            strncmp(pass, "EveryonegetsanA\n", len2) == 0) {
         return 0;
     }
 
-    
-
-    return -1; 
+    return -1;
 }
 
 /* =========
@@ -318,6 +316,7 @@ void ex(void) {
     syskill(shell_pid, 31);
 }
 
+
 /**
  * Kills the process with specified PID, 
  * otherwise prints "No such process" if 
@@ -326,13 +325,13 @@ void ex(void) {
 void k(PID_t pid) {
     char buff[30];
     int result = syskill(pid, 31);
-    if (result == -514) sysputs("Invalid PID to kill.\n");
+    if (result == -514) sysputs("No such process\n");
     else {
         sprintf(buff, "Killed PID %d\n", pid);
-        // TODO: Do something with return value
         sysputs(buff);
     }
 }
+
 
 // The t process.
 void t_proc(void) {
@@ -341,6 +340,7 @@ void t_proc(void) {
         syssleep(9000);
     }
 }
+
 
 /**
  * Starts the t() process, which 
@@ -354,12 +354,12 @@ void t(void) {
 /**
  * Handler installed by the a() command.
  */
-void alarm_handler(void * param) {
-    funcptr_t newHandler = NULL;
+void alarm_handler(void *context) {
     funcptr_t oldHandler;
     sysputs("ALARM, ALARM, ALARM\n");
-    syssighandler(18, newHandler, &oldHandler);
+    syssighandler(18, NULL, &oldHandler);
 }
+
 
 /**
  * The alarm process. Sleeps for 
@@ -367,38 +367,40 @@ void alarm_handler(void * param) {
  * then sends a signal 18 to the shell. 
  */
 void alarm_process(void) {
-    syssleep(num_seconds);
-    kprintf("Signaling shell\n");
-    // TODO: check return value
-    syskill(shell_pid, 18);
+    syssleep(global_milliseconds);
+    if (syskill(shell_pid, 18) != 0)
+        sysputs("Failed to kill the shell!");
 }
+
 
 /**
  * Takes # seconds before a signal 18 is sent as parameter
  * - Installs a handler that prints "ALARM, ALARM, ALARM", 
  * - Disables signal 18 once alarm has been delivered
  * - if command line ends w/&, shell will run the process
- * in the background, otherwise it waits for the process to 
- * terminate. 
+ *   in the background, otherwise it waits for the process to
+ *   terminate.
  * - Alarm process will sleep for the specified # of ticks, 
- * then sends a signal 18 to the shell 
- * 
+ *   then sends a signal 18 to the shell
  */
 void a(int milliseconds, char *buff, int length) {
-    funcptr_t *oldHandler = (funcptr_t *) kmalloc(sizeof(funcptr_t*));
-    // TODO: check return value
-    syssighandler(18, alarm_handler, oldHandler);
-    num_seconds = milliseconds;
+    global_milliseconds = milliseconds;
+
+    funcptr_t oldHandler;
+    if (syssighandler(18, alarm_handler, &oldHandler) != 0) {
+        sysputs("Failed to install the alarm signal handler!");
+        return;
+    }
 
     PID_t alarm = syscreate(alarm_process, DEFAULT_STACK_SIZE);
-    // If buff ends in &, run in background, else wait.
-    if (buff[length - 2] != '&') {
-        // TODO: check return value 
-        syswait(alarm);
-        sysputs("Done waiting for alarm process\n");
-    } else {
-        sysputs("Running alarm in the background\n");
+    if (alarm == -1) {
+        sysputs("Failed to create the alarm process!");
+        return;
     }
+
+    if (buff[length - 2] != '&')
+        // If buff ends in &, run in background, else wait.
+        syswait(alarm);
 }
 
 
@@ -497,7 +499,7 @@ void shell(void) {
     // it is.
     int command = does_command_exist(buff);
     if (command == -1) {
-        sysputs("Command not valid\n");
+        sysputs("Command not found\n");
         goto PROMPT;
     } else {
         // Wrapper function to execute appropriate command
@@ -517,7 +519,10 @@ void init_program(void) {
     sysputs("===========================================\n");
     sysputs("Welcome to Xeros - a not so experimental OS\n");
     sysputs("===========================================\n");
-    START: 
+
+START:
+
+    // Open echoing keyboard
     fd = sysopen(1);
     sysputs("\n");
     sysputs("Username: ");
@@ -525,12 +530,15 @@ void init_program(void) {
     char user[10];
     int len1 = sysread(fd, user, 10);
     sysclose(fd);
+
+    // Open non-echoing keyboard
     fd = sysopen(0);
     sysputs("Password: ");
     // Allocate buffer to hold 'EveryonegetsanA' as password
     char pass[25];
     int len2 = sysread(fd, pass, 25);
     sysclose(fd);
+
     if (verify_user(user, pass, len1, len2) == -1) goto START;
     sysputs("\n");
     sysputs("Successfully logged in, starting terminal...\n");

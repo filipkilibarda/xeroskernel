@@ -39,6 +39,8 @@ pcb *idle_process;
  * Returns the process ID on success, -1 on failure
  * */
 extern int create(void (*func)(void), int stack_size) {
+    if (!within_kernel_memory_bounds((unsigned long) func))
+        return -1;
     pcb *process = setup_process(func, stack_size, DEFAULT_PRIORITY);
     if (process == NULL) return -1;
     enqueue_in_ready(process);
