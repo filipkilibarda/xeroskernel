@@ -209,7 +209,6 @@ extern void dispatch(void) {
                 break;
 
             case SYSCALL_SIG_HANDLER:
-                // TODO: Put all this in a helper func
                 signal_num = GET_ARG(int, 0);
                 // TODO: camel case
                 newHandler = GET_ARG(funcptr_t, sizeof(int));
@@ -295,28 +294,16 @@ extern void dispatch(void) {
                 tick();
                 end_of_intr();
                 process->timer_ticks++;
-
-                // Ensure we don't enqueue idle process
-                // TODO: Put this in enqueue_in_ready
-                if (process != idle_process)
-                    enqueue_in_ready(process);
-
+                enqueue_in_ready(process);
                 process = dequeue_from_ready();
                 break;
 
             case KEYBOARD_INT:
-                //LOG("Keyboard interrupt!");
-        
                 // Put keypress into kernel buffer, if possible
                 read_char();
-                
                 // Notify end of interrupt
                 end_of_intr();
-
-                // Ensure idle process isn't enqueued in ready
-                // TODO: Put this in enqueue_in_ready
-                if (process != idle_process)
-                    enqueue_in_ready(process);
+                enqueue_in_ready(process);
                 process = dequeue_from_ready();
                 break;
 
@@ -515,17 +502,22 @@ pcb *dequeue_from_ready(void) {
 
 
 /**
- * Mark a process as ready to run, and place it
- * on the queue corresponding to its priority.
+ * Mark a process as ready to run, and place it on the queue corresponding to
+ * its priority.
+ *
+ * If there's an attempt to enqueue the idle process, do nothing. It's
+ * special and doesn't belong on the queue. Not an error if an attempt to
+ * enqueue it happens.
  **/
 void enqueue_in_ready(pcb *process) {
     if (process->sending_to_pid || process->receiving_from_pid)
         FAIL("Bug. Ready processes should never have these fields set.");
     if (process == idle_process)
-        FAIL("Bug. Idle process should never be enqueued!");
+        return;
     process->state = PROC_READY;
     enqueue(ready_queues[process->priority], process);
 }
+
 
 /**
  * Enqueues the supplied process into the waiter queue

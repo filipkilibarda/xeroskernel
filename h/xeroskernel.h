@@ -162,6 +162,7 @@ struct pcb_s {
 };
 
 
+// TODO: Docs
 struct device {
     int  (*open)(PID_t pid);
     int  (*close)(int fd);
