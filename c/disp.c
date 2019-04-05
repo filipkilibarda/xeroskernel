@@ -774,10 +774,10 @@ int get_cpu_times(process_statuses *proc_stats) {
         return -1;
   
 
-    // TODO: In the solution given to us, they only check that the address
-    //  doesn't go beyond main memory. They don't check that the address
-    //  isn't in kernel space. User processes shouldn't be passing kernel
-    //  space pointers into system calls, so I'm going to put that check here.
+    // In the solution given to us, they only check that the address doesn't go
+    // beyond main memory. They don't check that the address isn't in kernel
+    // space. User processes shouldn't be passing kernel space pointers into
+    // system calls, so I'm going to put that check here.
     if (!within_memory_bounds(ptr) || !within_memory_bounds(ptr_end))
         return -2;
     
@@ -861,6 +861,7 @@ void test_dispatcher(void) {
     kprintf("Finished dispatcher tests!\n\n");
 }
 
+
 /**
  * Wakes up any waiters (adds them to the ready queue)
  */
@@ -868,8 +869,6 @@ void wake_up_waiters(pcb_queue *waiter_queue) {
     //LOG("Waking up waiters\n");
     pcb *cur = waiter_queue->front_of_line;
     while (cur != NULL) {
-        // TODO: Enqueue in ready already changes state no need to do here
-        cur->state = PROC_READY;
         enqueue_in_ready(cur);
         cur = cur->next;
     }
