@@ -201,13 +201,12 @@ int kill(PID_t pid, int signal_num) {
     // Make sure pid to send to exists
     pcb *receiving_process = get_active_pcb(pid);
 
-    if (!receiving_process)
-        return -514;
+    if (!receiving_process) return -514;
+    if (!is_valid_signal_num(signal_num)) return -583;
 
     // No handler for this signal, ignore it
-    if (is_valid_signal_num(signal_num) && 
-    receiving_process->sig_handlers[signal_num] == NULL) 
-    return 0;
+    if (receiving_process->sig_handlers[signal_num] == NULL)
+        return 0;
 
     // If process to signal is blocked, set its return value to -666, unless it
     // is sleeping
@@ -221,16 +220,12 @@ int kill(PID_t pid, int signal_num) {
         clear_ipc_state(receiving_process);
 
         LOG("Pulling from sleep list");
-        // TODO: The return value here needs to be the amount of time that's
-        //  left to sleep.
+        // TODO: No need to pull from sleep list everytime
         pull_from_sleep_list(receiving_process);
         enqueue_in_ready(receiving_process);
 
         signal(pid, signal_num);
         return 0;
-
-    } else if (!is_valid_signal_num(signal_num)) {
-        return -583;
 
     } else {
         signal(pid, signal_num);
