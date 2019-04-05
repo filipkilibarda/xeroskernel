@@ -152,6 +152,7 @@ struct pcb_s {
     int old_ret_value;        // Used in signaling to save old ret value
     int priority;             // Scheduling priority.
     int sleep_time;
+    // TODO: Change name to timer ticks
     long num_ticks;           // Number of ticks used by this.
     pcb *next;                // Generic next pcb; used for queues.
     pcb_queue sender_queue;   // pcbs wanting to send to this.

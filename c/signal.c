@@ -204,6 +204,9 @@ int kill(PID_t pid, int signal_num) {
     if (!receiving_process)
         return -514;
 
+    // TODO: If the signal handler is NULL just return 0 immediately, nothing
+    //  to do.
+
     // If process to signal is blocked, set its return value to -666, unless it
     // is sleeping
     if (is_blocked(receiving_process)) {
@@ -218,6 +221,7 @@ int kill(PID_t pid, int signal_num) {
         LOG("Pulling from sleep list");
         // TODO: The return value here needs to be the amount of time that's
         //  left to sleep.
+        // TODO: Don't do this if not on sleep queue
         pull_from_sleep_list(receiving_process);
         enqueue_in_ready(receiving_process);
 
@@ -460,4 +464,6 @@ void _test_signal(void) {
     syssleep(1000);
     LOG("Calling syskill on sleeper");
     ASSERT_INT_EQ(0, syskill(sleeper, 5));
+
+    // TODO: Copy what we did for test_ipc here. A bunch of assertions.
 }

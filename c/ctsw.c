@@ -18,6 +18,12 @@
 #include <test.h>
 #include <kbd.h>
 
+// A magic number that we initialize the process's return value to at the
+// start of every system call. This is useful for testing to ensure we're
+// updating the return value appropriately.
+#define EMPTY_RETURN_VALUE -1337
+
+
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-variable"
 static void *kern_stack;
@@ -31,6 +37,7 @@ static void *eip_ptr;
 static unsigned long req_id;
 static unsigned long retval;
 static unsigned long hardware_interrupt_num;
+
 
 /**
  * Top half handles context switch into process,
@@ -90,12 +97,10 @@ int contextswitch(pcb *process) {
         //  effectively saving the eax value of the process
         process->ret_value = req_id;
         req_id = hardware_interrupt_num;
+    } else {
+        // See docs for EMPTY_RETURN_VALUE above
+        process->ret_value = EMPTY_RETURN_VALUE;
     }
-    // TODO: Add else statement here that sets the return_value of the pcb to
-    //  some magic number. Because I found some bugs in our code where the
-    //  return value from the prev syscall gets propagated, this would be a
-    //  good way to ensure that assertions fail when return value is
-    //  accidentally not overwritten after syscall
 
     process->stack_ptr = ESP;
     process->eip_ptr = eip_ptr;
@@ -109,5 +114,7 @@ void contextinit() {
     set_evec(SYSCALL_IDT_INDEX,  (unsigned long) _syscall_entry);
     set_evec(TIMER_IDT_INDEX,    (unsigned long) _timer_entry);
     set_evec(KEYBOARD_IDT_INDEX, (unsigned long) _keyboard_entry);
+    // TODO: This is right. This is saying timer interrupt every 1/100 of
+    //  second
     initPIT(100);
 }

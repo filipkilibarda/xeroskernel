@@ -256,7 +256,7 @@ void root(void) {
     syswait(create(test_invalid_process_code, DEFAULT_STACK_SIZE));
     syswait(create(test_ipc, DEFAULT_STACK_SIZE));
     syswait(create(test_signal, DEFAULT_STACK_SIZE));
-    syswait(create(test_kb, DEFAULT_STACK_SIZE));
+//    syswait(create(test_kb, DEFAULT_STACK_SIZE));
 //    syswait(create(test_time_slice, DEFAULT_STACK_SIZE));
 //    syswait(create(producer_consumer, DEFAULT_STACK_SIZE));
 

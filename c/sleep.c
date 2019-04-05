@@ -6,6 +6,7 @@
 #include <xeroslib.h>
 #include <test.h>
 
+// TODO: Merge this with TICK_MILLISECONDS
 #define TICK_TIME 10
 pcb *sleep_delta_list = NULL;
 
@@ -54,7 +55,6 @@ int sleep(pcb *process, unsigned int milliseconds) {
     prev->next = process;
     process->next = NULL;
     return 0;
-
 }
 
 /**
