@@ -252,12 +252,12 @@ void root(void) {
     // Tests
     // =====
     #ifdef TESTING
-//    syswait(create(test_syscreate, DEFAULT_STACK_SIZE));
-//    syswait(create(test_pcb_table_full, DEFAULT_STACK_SIZE));
-//    syswait(create(test_stack_too_big, DEFAULT_STACK_SIZE));
-//    syswait(create(test_invalid_process_code, DEFAULT_STACK_SIZE));
-//    syswait(create(test_ipc, DEFAULT_STACK_SIZE));
-//    syswait(create(test_signal, DEFAULT_STACK_SIZE));
+    syswait(create(test_syscreate, DEFAULT_STACK_SIZE));
+    syswait(create(test_pcb_table_full, DEFAULT_STACK_SIZE));
+    syswait(create(test_stack_too_big, DEFAULT_STACK_SIZE));
+    syswait(create(test_invalid_process_code, DEFAULT_STACK_SIZE));
+    syswait(create(test_ipc, DEFAULT_STACK_SIZE));
+    syswait(create(test_signal, DEFAULT_STACK_SIZE));
     syswait(create(test_kb, DEFAULT_STACK_SIZE));
 //    syswait(create(test_time_slice, DEFAULT_STACK_SIZE));
 //    syswait(create(producer_consumer, DEFAULT_STACK_SIZE));
