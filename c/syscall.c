@@ -276,8 +276,6 @@ int sysioctl(int fd, unsigned long command, ...) {
  * Otherwise, enqueues the given process back into the ready queue.
  */
 void wait(pcb *process, PID_t pid) {
-    LOG("Starting syswait %d waiting on %d", process->pid, pid);
-
     // The process we're waiting on
     pcb *other_process = get_active_pcb(pid);
 

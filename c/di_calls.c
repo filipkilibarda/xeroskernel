@@ -63,17 +63,16 @@ int di_close(pcb *process, int fd) {
 
 
 /**
- * Return the number of bytes that were read into the buffer.
- * Return -1 if some other error occurs.
- *
- * If fewer than bufflen bytes are read, then the dispatcher should handle
- * blocking the process. Process would then be unblocked after receiving a
- * notification from the device driver when the pending read is satisfied.
+ * No return value. This function handles setting the return value of the
+ * process and scheduling it.
  */
-int di_read(pcb *process, int fd, char *buff, unsigned int bufflen) {
-    if (!file_is_open(process, fd) || buff == NULL || bufflen <= 0)
-        return -1;
-    return process->fdt[fd].device->read(buff, bufflen);
+void di_read(pcb *process, int fd, char *buff, unsigned int bufflen) {
+    if (!file_is_open(process, fd) || buff == NULL || bufflen <= 0) {
+        process->ret_value = -1;
+        enqueue_in_ready(process);
+        return;
+    }
+    process->fdt[fd].device->read(buff, bufflen);
 }
 
 

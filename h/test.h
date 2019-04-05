@@ -26,11 +26,11 @@
 #include <xeroslib.h>
 
 // This turns on LOG messages
-//#define ENABLE_LOGGING
+#define ENABLE_LOGGING
 // This makes it such that successful assertions are logged
-//#define PRINT_ASSERT_CONFIRMATION
+#define PRINT_ASSERT_CONFIRMATION
 // This turns on the tests
-//#define TESTING
+#define TESTING
 
 // Helper for including variadic args in macros
 #define VA_ARGS(...) , ##__VA_ARGS__

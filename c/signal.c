@@ -20,6 +20,7 @@
 #include <xeroslib.h>
 #include <i386.h>
 #include <test.h>
+#include <kbd.h>
 
 
 static void      somethings_broken_function(void);
@@ -83,18 +84,29 @@ int signal(PID_t pid, int signal_num) {
 
     pcb *process_to_signal = get_active_pcb(pid);
 
-    if (!is_valid_signal_num(signal_num))                       return -583;
-    if (!process_to_signal)                                     return -514;
-    if (get_sig_handler(process_to_signal, signal_num) == NULL) return 0;
+    if (!is_valid_signal_num(signal_num)) return -583;
+    if (!process_to_signal)               return -514;
+    if (get_sig_handler(process_to_signal, signal_num) == NULL) {
+        // NOTE: we do not unblock a blocked process if it's signaled for a
+        //       signal it's ignoring. This is a policy choice.
+        LOG("Ignoring signal %d process %d", signal_num, pid);
+        return 0;
+    }
 
+    LOG("Set signal %d process %d", signal_num, pid);
     set_signal(process_to_signal, signal_num);
 
     if (is_blocked(process_to_signal)) {
+
         if (!on_sleeper_queue(process_to_signal)) {
             process_to_signal->ret_value = INTERRUPTED_SYSCALL;
-        } else {
-            // The process is sleeping in this case, so the return value
-            // should already be how much time is left to sleep.
+
+        } else if (blocked_on_keyboard(process_to_signal->pid)) {
+            int num_chars = get_num_chars_read();
+            if (num_chars > 0)
+                process_to_signal->ret_value = num_chars;
+            else
+                process_to_signal->ret_value = INTERRUPTED_SYSCALL;
         }
         unblock(process_to_signal);
         return 0;
@@ -405,7 +417,10 @@ void test_signal(void) {
 
 void test_process(void) {
     // Does nothing.
-    for(int i = 0; i < 10000000; i++) sysyield();
+    for(int i = 0; i < 10000000; i++) {
+        sysyield();
+        for(int i = 0; i < 10000000; i++);
+    }
 }
 
 void test_process_prints(void) {
@@ -424,10 +439,12 @@ void register_handler_loop(void) {
 }
 
 void test_handler(void *param) {
-    kprintf("Running the specified handler!\n");
+    LOG("Running the specified handler!");
 }
 
 void send_signal_int(void) {
+    funcptr_t old_handler;
+    syssighandler(4, test_handler, &old_handler);
     int result = syssend(proc, 3);
     ASSERT_INT_EQ(INTERRUPTED_SYSCALL, result);
 }
@@ -521,7 +538,6 @@ void _test_signal(void) {
     p1 = syscreate(test_process_prints, DEFAULT_STACK_SIZE);
     // We never defined a signal handler so it should just ignore this.
     // We will see it print 10 times.
-    sysputs("Calling syskill\n");
     ASSERT_INT_EQ(0, syskill(p1, 2));
 
     // TEST 8: attempt to signal while a process is blocked sleeping
@@ -534,11 +550,12 @@ void _test_signal(void) {
 
     syssleep(1000);
     // TEST 9: attempt to signal a process blocked on a send
+    LOG("==== SIGNAL PROCESS BLOCKED ON SEND ====");
     proc = syscreate(test_process, DEFAULT_STACK_SIZE);
     PID_t p3 = syscreate(send_signal_int, DEFAULT_STACK_SIZE);
+    ASSERT_INT_EQ(0, syssleep(1000));
     ASSERT_INT_EQ(0, syskill(p3, 4));
     ASSERT_INT_EQ(0, syskill(proc, 31));
-    ASSERT_INT_EQ(0, syskill(p3, 31));
 
     // TEST 10: Illegal syskill signal
     result = syskill(proc, 50);

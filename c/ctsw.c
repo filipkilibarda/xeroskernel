@@ -50,7 +50,6 @@ int contextswitch(pcb *process) {
     int pending_sig_num = get_pending_sig_num(process);
     if (pending_sig_num > -1) {
         setup_sig_context(process, pending_sig_num);
-        LOG("Context switching to process %d", process->pid);
     }
 
     ESP = process->stack_ptr;

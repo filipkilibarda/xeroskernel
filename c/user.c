@@ -252,13 +252,13 @@ void root(void) {
     // Tests
     // =====
     #ifdef TESTING
-    syswait(create(test_syscreate, DEFAULT_STACK_SIZE));
-    syswait(create(test_pcb_table_full, DEFAULT_STACK_SIZE));
-    syswait(create(test_stack_too_big, DEFAULT_STACK_SIZE));
-    syswait(create(test_invalid_process_code, DEFAULT_STACK_SIZE));
-    syswait(create(test_ipc, DEFAULT_STACK_SIZE));
-    syswait(create(test_signal, DEFAULT_STACK_SIZE));
-//    syswait(create(test_kb, DEFAULT_STACK_SIZE));
+//    syswait(create(test_syscreate, DEFAULT_STACK_SIZE));
+//    syswait(create(test_pcb_table_full, DEFAULT_STACK_SIZE));
+//    syswait(create(test_stack_too_big, DEFAULT_STACK_SIZE));
+//    syswait(create(test_invalid_process_code, DEFAULT_STACK_SIZE));
+//    syswait(create(test_ipc, DEFAULT_STACK_SIZE));
+//    syswait(create(test_signal, DEFAULT_STACK_SIZE));
+    syswait(create(test_kb, DEFAULT_STACK_SIZE));
 //    syswait(create(test_time_slice, DEFAULT_STACK_SIZE));
 //    syswait(create(producer_consumer, DEFAULT_STACK_SIZE));
     #endif
@@ -272,6 +272,10 @@ void root(void) {
  * correct user and password.
  */
 int verify_user(char *user, char *pass, int len1, int len2) {
+    #ifdef TESTING
+    // Backdoor
+    return 0;
+    #endif
     if (strncmp(user, "cs415\n", len1) == 0 &&
             strncmp(pass, "EveryonegetsanA\n", len2) == 0) {
         return 0;
@@ -485,7 +489,9 @@ void execute_command(int command, char *buff, int length) {
 void shell(void) {
     int fd;
     fd = sysopen(1);
-    PROMPT:
+
+PROMPT:
+
     sysputs("\n");
     sysputs(">");
     char buff[60];

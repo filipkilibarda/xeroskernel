@@ -115,7 +115,6 @@ extern void dispatch(void) {
     unsigned int bufflen;
     va_list ap;
     unsigned long command;
-    int result;
 
     // Grab the first process to service
     pcb *process = dequeue_from_ready();
@@ -257,16 +256,7 @@ extern void dispatch(void) {
                 fd = GET_ARG(int, 0);
                 buff = GET_ARG(char *, sizeof(int));
                 bufflen = GET_ARG(unsigned int, sizeof(int) + sizeof(char *));
-
-                result = di_read(process, fd, buff, bufflen);
-
-                // TODO: Didn't get too good of a look but seems like this is
-                //  duplicated in di_read
-                if (result == -2)
-                    process->ret_value = 0;
-                else
-                    process->ret_value = result;
-
+                di_read(process, fd, buff, bufflen);
                 process = dequeue_from_ready();
                 break;
 
@@ -299,7 +289,7 @@ extern void dispatch(void) {
 
             case KEYBOARD_INT:
                 // Put keypress into kernel buffer, if possible
-                read_char();
+                read_from_keyboard();
                 // Notify end of interrupt
                 end_of_intr();
                 enqueue_in_ready(process);
@@ -408,9 +398,8 @@ pcb *get_active_pcb(PID_t pid) {
  * Remove it from any queues it's on.
  */
 void unblock(pcb *process) {
-    // TODO: Get Will to check this out; make sure we covered all bases
-    // TODO: Need to unblock from keyboard stuff as well, but hard to say how
-    //  to do that at the moment.
+    if (blocked_on_keyboard(process->pid))
+        stop_read();
     remove_from_waiting_queue(process);
     remove_from_ipc_queues(process);
     pull_from_sleep_list(process);

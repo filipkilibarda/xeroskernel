@@ -67,7 +67,7 @@ typedef unsigned int size_t; /* Something that can hold the value of
 #define DEFAULT_STACK_SIZE 4096
 #define DEFAULT_PRIORITY 3
 // Maximum number of processes. Must be power of two
-#define MAX_PCBS 32
+#define MAX_PCBS 8 // TODO: change this back
 #define IDLE_PROCESS_PID 0
 // Process state numbers DO NOT CHANGE NUMBER ORDER HERE
 #define PROC_READY 0
@@ -189,11 +189,11 @@ struct pcb_s {
 
 // Stores DII implementations for each device
 struct device {
-    int  (*open)(PID_t pid);
-    int  (*close)(int fd);
-    int  (*read)(void *buff, unsigned int bufflen);
-    int  (*write)(void *buff, unsigned int bufflen);
-    int  (*ioctl)(int command, va_list ap);
+    int   (*open)(PID_t pid);
+    int   (*close)(int fd);
+    void  (*read)(void *buff, unsigned int bufflen);
+    int   (*write)(void *buff, unsigned int bufflen);
+    int   (*ioctl)(int command, va_list ap);
 };
 
 
@@ -317,11 +317,11 @@ void          setup_sig_context(pcb *process, int signal_num);
 
 
 // di_calls.c
-int di_open(pcb *process, int device_no);
-int di_close(pcb *process, int fd);
-int di_read(pcb *process, int fd, char *buff, unsigned int bufflen);
-int di_write(pcb *process, int fd, char *buff, unsigned int bufflen);
-int di_ioctl(pcb *process, int fd, int command, va_list ap);
+int  di_open(pcb *process, int device_no);
+int  di_close(pcb *process, int fd);
+void di_read(pcb *process, int fd, char *buff, unsigned int bufflen);
+int  di_write(pcb *process, int fd, char *buff, unsigned int bufflen);
+int  di_ioctl(pcb *process, int fd, int command, va_list ap);
 
 
 // tests
