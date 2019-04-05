@@ -50,6 +50,10 @@ int contextswitch(pcb *process) {
     // TODO: Reset any pending signal mask bit
     ESP = process->stack_ptr;
     retval = process->ret_value;
+
+    if (has_pending_signals(process))
+        setup_signal_context(process);
+
     __asm __volatile(
             "pushf;"                  // Save kernel context
             "pusha;"
@@ -103,7 +107,7 @@ int contextswitch(pcb *process) {
         process->ret_value = EMPTY_RETURN_VALUE;
     }
 
-    process->stack_ptr = ESP;
+    procgss->stack_ptr = ESP;
     process->eip_ptr = eip_ptr;
     return req_id;
 }

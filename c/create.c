@@ -103,7 +103,7 @@ pcb *setup_process(void (*func)(void), int stack_size, int priority) {
     free_pcb->receiving_from_pid = NULL;
     free_pcb->sending_to_pid = NULL;
     free_pcb->timer_ticks = 0;
-    free_pcb->sig_mask = (unsigned long) 0x00000000;
+    free_pcb->pending_signals = (unsigned long) 0x00000000;
     free_pcb->sig_prio = -1; // No signals have been sent, so no priority set.
     free_pcb->sig_stack_size = 0; // Initially no signals sent
 

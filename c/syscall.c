@@ -173,7 +173,7 @@ int syssighandler(int signal, void (*newHandler)(void *), void (**oldHandler)(vo
  * Performs a return from the signal trampoline code
  * Will only ever be called by the signal trampoline code
  * Updates the PCB's stack pointer field, and retrieves
- * any saved return value. Updates the PCB's sig_mask
+ * any saved return value. Updates the PCB's pending_signals
  * field to indicate that the current signal being finished
  * can be delivered again.
  */
@@ -302,6 +302,7 @@ void wait(pcb *process, PID_t pid) {
         // Block process
         process->state = PROC_BLOCKED;
         process->ret_value = 0;
+        process->waiting_for_pid = pid;
         // Add to queue of waiters
         enqueue_in_waiters(process, other_process);
     }

@@ -344,14 +344,15 @@ int stop_process(PID_t pid) {
     // Clean up any open devices
     clean_up_devices(process);
 
+    // TODO: Might just wanna call unblock here (then call enqueue_in_stopped
+    //  after)
     // Check if there were any processes waiting for this process to die
     // TODO: This should go in notify_dependent_processes
-    wake_up_waiters(&process->waiter_queue);
-
+    wake_up_waiters(process);
+    // TODO: If the process is on a waiter queue, remove it
     pull_from_queue(ready_queues[process->priority], process);
     notify_dependent_processes(process);
-    //LOG("Removing from IPC Queues", NULL);
-    clear_ipc_state(process);
+    remove_from_ipc_queues(process);
     return 0;
 }
 
@@ -402,6 +403,22 @@ pcb *get_active_pcb(PID_t pid) {
     pcb *process = get_pcb(pid);
     if (process->state == PROC_STOPPED) return NULL;
     return process;
+}
+
+
+/**
+ * Unblock this process so that it's ready to run.
+ *
+ * Remove it from any queues it's on.
+ */
+void unblock(pcb *process) {
+    // TODO: Get Will to check this out; make sure we covered all bases
+    // TODO: Need to unblock from keyboard stuff as well, but hard to say how
+    //  to do that at the moment.
+    remove_from_waiting_queue(process);
+    remove_from_ipc_queues(process);
+    pull_from_sleep_list(process);
+    enqueue_in_ready(process_to_signal);
 }
 
 
@@ -857,11 +874,24 @@ void test_dispatcher(void) {
 /**
  * Wakes up any waiters (adds them to the ready queue)
  */
-void wake_up_waiters(pcb_queue *waiter_queue) {
-    //LOG("Waking up waiters\n");
-    pcb *cur = waiter_queue->front_of_line;
+ // TODO: Move into notify_dependent_processes
+void wake_up_waiters(pcb *process) {
+    pcb *cur = process->waiter_queue.front_of_line;
     while (cur != NULL) {
+        if (cur->waiting_for_pid != process->pid)
+            FAIL("Bug. Inconsistent PCB state.");
         enqueue_in_ready(cur);
         cur = cur->next;
     }
+}
+
+
+/**
+ * TODO
+ */
+void remove_from_waiting_queue(pcb *process) {
+    pcb *other_process = get_active_pcb(process->wait_for_pid);
+    if (!other_process)
+        return;
+    pull_from_queue(other_process->waiter_queue, process);
 }

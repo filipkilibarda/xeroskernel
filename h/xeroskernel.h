@@ -53,6 +53,12 @@ typedef unsigned int size_t; /* Something that can hold the value of
 #define TIMER_INT              100
 #define KEYBOARD_INT           101
 
+// This is what's returned when a system call is interrupted by a signal
+#define INTERRUPTED_SYSCALL -666
+
+// The number of general purpose registers in our architecture
+#define NUM_GP_REGISTERS 8;
+
 #define SYSCALL_IDT_INDEX  60 // Used for generic syscall interface
 #define TIMER_IDT_INDEX    32
 #define KEYBOARD_IDT_INDEX 33 // Index into the interrupt descriptor table
@@ -68,6 +74,9 @@ typedef unsigned int size_t; /* Something that can hold the value of
 #define PROC_RUNNING 1
 #define PROC_STOPPED 2
 #define PROC_BLOCKED 3
+
+// These are the flags that user processes should run with
+#define PROCESS_EFLAGS 0x00003200
 
 #define MAX_DEVICES 2
 #define MAX_OPEN_FILES 4
@@ -144,7 +153,6 @@ struct pcb_s {
     // system call arguments off the stack easier.
     void *eip_ptr;
     int ret_value;            // The value to return to proc after sys call.
-    int old_ret_value;        // Used in signaling to save old ret value
     int priority;             // Scheduling priority.
     int sleep_ticks;          // The number of ticks the proc should sleep for
     long timer_ticks;         // Number of ticks used by this.
@@ -153,9 +161,10 @@ struct pcb_s {
     pcb_queue receiver_queue; // pcbs wanting to recv from this.
     PID_t receiving_from_pid; // PID that this is blocked receiving from.
     PID_t sending_to_pid;     // PID that this is blocked sending to.
+    PID_t waiting_for_pid;    // The process we're waiting on to die
     int sig_stack_size;       // Number of signals on the current process stack.
     void *sig_handlers[MAX_SIGNALS]; // Signal handlers for this process
-    unsigned long sig_mask;   // Mask holding currently pending signals
+    unsigned long pending_signals;   // Mask holding currently pending signals
     int sig_prio;             // Current highest priority signal
     pcb_queue waiter_queue;   // pcbs wanting to wait for this to end.
     fdt_entry_t fdt[MAX_OPEN_FILES];
@@ -218,7 +227,7 @@ void      print_pcb_list(pcb *process);
 void      dump_queues(void);
 void      validate_stopped_queue(void);
 void      enqueue_in_waiters(pcb *process, pcb *wait_for);
-void      wake_up_waiters(pcb_queue *waiter_queue);
+void      wake_up_waiters(pcb *process);
 void      clean_up_devices(pcb *process);
 int       is_valid_pid(PID_t pid);
 
@@ -262,7 +271,7 @@ int          setprio(pcb *process, int priority);
 PID_t generate_pid(pcb *process);
 void  send(pcb *sender, PID_t dest_pid, unsigned long num);
 void  recv(pcb *receiver, PID_t *from_pid, unsigned long *dst_num);
-void  clear_ipc_state(pcb *process);
+void  remove_from_ipc_queues(pcb *process);
 void  notify_dependent_processes(pcb *process);
 int   is_blocked(pcb *process);
 
@@ -280,7 +289,7 @@ int  ticks_to_ms(int num_ticks);
 // signal.c
 int           signal(PID_t pid, int signal_num);
 void          sigtramp(void (*handler)(void *), void *context);
-unsigned long get_sig_mask(int signal_num);
+unsigned long get_pending_signals(int signal_num);
 int           is_valid_signal_num(int signal_num);
 int           kill(PID_t pid, int signal_num);
 int           sigreturn(pcb *process, void *old_sp);

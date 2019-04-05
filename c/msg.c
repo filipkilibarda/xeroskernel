@@ -162,7 +162,7 @@ int is_blocked_receiving_from(pcb *receiving_pcb, pcb *sending_pcb) {
  * Remove this process from all IPC queues. Should be called when a process
  * is killed while blocked on some form of IPC.
  **/
-void clear_ipc_state(pcb *process) {
+void remove_from_ipc_queues(pcb *process) {
     pcb *other_process;
 
     pull_from_queue(&receive_any_queue, process);
