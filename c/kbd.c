@@ -516,6 +516,16 @@ void _test_keyboard(void) {
     ASSERT_INT_EQ(-1, sysioctl_result);
     sysclose(fd);
 
+    // Test sysread() when more characters are buffered than
+    // there are read requests. 
+    fd = sysopen(0);
+    sysputs("Please begin pounding the keyboard (press x first)\n");
+    syssleep(3000);
+    char read_buff[1];
+    int length = sysread(fd, read_buff, 1);
+    ASSERT_INT_EQ(1, length);
+    ASSERT(read_buff[0] == 'x', "Oops");
+
     PID_t test_proc = syscreate(reader_process, DEFAULT_STACK_SIZE);
     syswait(test_proc);
     kprintf("Ending test!\n");
