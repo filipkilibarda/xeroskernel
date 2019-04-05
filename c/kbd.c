@@ -136,8 +136,6 @@ int keyboard_open_echoing(PID_t pid) {
 
 /**
  * Disable interrupts from the keyboard.
- *
- * TODO: Fail if keyboard is already closed? (return 0)
  */
 int keyboard_close(int fd) {
     enable_irq(KEYBOARD_IRQ, 1);

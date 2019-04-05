@@ -1,7 +1,5 @@
 /**
  * kbd.h: Keyboard device driver
- *
- * TODO docs
  */
 
 #ifndef KBD_H

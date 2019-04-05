@@ -11,8 +11,6 @@
  *  sysyield():
  *      Yield the current running process (give up the cpu and wait to be
  *      scheduled again).
- *
- *  TODO document the rest
  **/
 
 #include <xeroskernel.h>

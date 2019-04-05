@@ -1,8 +1,6 @@
 /** user.c : User processes
  *
  * The functions in this file contain the code for "user" processes.
- *
- * TODO: More docs?
  **/
 
 #include <i386.h>

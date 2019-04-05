@@ -67,7 +67,7 @@ typedef unsigned int size_t; /* Something that can hold the value of
 #define DEFAULT_STACK_SIZE 4096
 #define DEFAULT_PRIORITY 3
 // Maximum number of processes. Must be power of two
-#define MAX_PCBS 16 // TODO: Change back to 32
+#define MAX_PCBS 32
 #define IDLE_PROCESS_PID 0
 // Process state numbers DO NOT CHANGE NUMBER ORDER HERE
 #define PROC_READY 0
@@ -187,7 +187,7 @@ struct pcb_s {
 };
 
 
-// TODO: Docs
+// Stores DII implementations for each device
 struct device {
     int  (*open)(PID_t pid);
     int  (*close)(int fd);

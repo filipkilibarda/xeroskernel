@@ -870,7 +870,6 @@ void test_dispatcher(void) {
 /**
  * Wakes up any waiters (adds them to the ready queue)
  */
- // TODO: Move into notify_dependent_processes
 void wake_up_waiters(pcb *process) {
     pcb *cur = process->waiter_queue.front_of_line;
     while (cur != NULL) {
@@ -883,7 +882,8 @@ void wake_up_waiters(pcb *process) {
 
 
 /**
- * TODO
+ * Remove the given process from the waiter queue of the process it's waiting
+ * on.
  */
 void remove_from_waiting_queue(pcb *process) {
     pcb *other_process = get_active_pcb(process->waiting_for_pid);

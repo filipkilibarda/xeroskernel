@@ -69,7 +69,6 @@ int sleep(pcb *process, unsigned int milliseconds) {
 void tick() {
     pcb *cur = sleep_delta_list;
     while (cur != NULL) {
-        // TODO: just decrease the number of ticks not the time
         cur->sleep_ticks -= 1;
         // Always update return value with remaining
         // sleep time; if process is woken early, 
