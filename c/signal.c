@@ -689,7 +689,4 @@ void _test_signal2(void) {
     syssighandler(3, handler_run_twice, &old_handler);
     SYSKILL(pid, 3);
     ASSERT_INT_EQ(2, num_runs);
-
-    // TODO Write a test where IPC is happening and make sure return value is
-    //  restored after signal.
 }
