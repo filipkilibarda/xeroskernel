@@ -10,7 +10,17 @@ are to be limited to 80 characters.
 =====================================================================
                               TESTS                                       
 =====================================================================
+
+Note: Most of our tests are fully automated. I'll try to put references to the
+      places in the code where the tests run because looking at that is much
+      better than looking at the output (we don't really have much output unless
+      there's a failure).
+
+
 #1 - Test showing prioritization and signals interrupting each other
+====================================================================
+See signal.c:539 for code
+
 TEST: 
  - Create 2 signal handlers
     - one prints "I'm lower priority"
@@ -25,22 +35,33 @@ EXPECT: "I'm a higher priority" should be printed before
 "I'm a lower priority" is. 
 RESULT: PASSES
 
-#2 - syssighandler() test case 
-TEST: 
+#2 - syssighandler() test case
+====================================================================
+See signal.c:524 for code
+
+TEST:
 - Attempt to pass in old_handler pointer at an invalid address
 
 EXPECT: Should return -3 to indicate that old_handler is at invalid address
 RESULT: PASSES
 
+
 #3 - syskill() test case 
-TEST: 
-- Attempt to signal default behaviour 
+====================================================================
+See signal.c:541 for code
+
+TEST:
+- Attempt to signal default behaviour
 
 EXPECT:
 - No handler should be run. 
-REULT: PASSES 
+RESULT: PASSES
+
 
 #4 - syswait() test case
+====================================================================
+See signal.c:601 for code
+
 TEST:
 - Attempt to wait on a non-existent process
 
@@ -48,33 +69,47 @@ EXPECT:
 - Should return -1
 RESULT: PASSES
 
+
 #5 - sysopen() with invalid arguments
-TEST: 
+====================================================================
+See kbd.c:592 for code
+
+TEST:
 - Attempt to open on device 12
 
 EXPECT: 
 - Should return -1
 RESULT: PASSES
 
+
 #6 - syswrite() with invalid file descriptor
-TEST: 
+====================================================================
+See kbd.c:610 for code
+
+TEST:
 - Attempt to do a syswrite to fd 20 
 
 EXPECT:
 - Should return -1
 RESULT: PASSES
 
+
 #7 - sysioctl() test for invalid arguments 
-TEST: 
+====================================================================
+See kbd.c:619 for code
+
+TEST:
 - Call sysioctl() with 60 as command number
 
 EXPECT: 
 - Should return -1
 RESULT: PASSES
 
-#8 - sysread() when there are more characters buffered 
-in kernel than read requests
-TEST: 
+
+#8 - sysread() when there are more characters buffered  in kernel than read
+               requests
+====================================================================
+TEST:
 - Create a process that does a syssleep for 10 seconds
 - While the process is sleeping, pound away at the keyboard
     - make note of the first key you press 
@@ -90,12 +125,39 @@ the process buffer.
 get copied into the buffer of the user. 
 RESULT: PASSES
 
-#9 - Two test cases for scenarios not covered here or in the test program. 
-SCENARIO 1: attempt to install a new_handler at an invalid memory
-address in syssighandler()
-EXPECT: Should return -2 indicating new_handler is invalid
-RESULT: PASSES 
 
-SCENARIO 2: attempt to signal a process blocked on a send 
-EXPECT: syssend call should return -666
-RESULT: PASSES
+#9 - Two test cases for scenarios not covered here or in the test program. 
+====================================================================
+See kbd.c:673 for code
+
+TEST:
+    - Create a process that simulates a user typing on the keyboard. It
+      basically just populates the kernel buffer in the same way a hardware
+      interrupt would. (Triggers the same sequence of events)
+    - Have this process send an EOF character
+    - In another process do a sysread on the keyboard.
+
+EXPECT:
+    The return value should be 0, but not only that, everytime you read from the
+    keyboard you should get and EOF return code from sysread (0). This effect
+    can be cancelled by closing and opening the file descriptor.
+
+RESULT:
+    PASSES
+    We verify the above claim by reading multiple times after the first EOF and
+    asserting the return value is zero every time.
+
+
+See signal.c:688 for code
+
+TEST:
+    - Have a signal handler send the same signal to itself. E.g., receive signal
+      for signal 8, start handler, handler then signals itself signal 8 again.
+
+EXPECT:
+    - The signal handler should run twice.
+    - In addition, the first occurrence of the handler should NOT be interrupted
+Result:
+    PASSES
+    - We verify that the first occurrence is not interrupted by using an if
+      statement to detect which run is currently going off. See signal.c:653.
